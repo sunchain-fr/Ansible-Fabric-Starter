@@ -1,0 +1,39 @@
+- hosts: nodes
+  tasks:
+
+  - block:
+
+    - name: Set chaincode invoke content
+      set_fact:
+        chaincode_update_json: '{"Args":["move", "a", "b", "10"]}'
+        chaincode_query_json: '{"Args":["query", "a"]}'
+        invoke_channel_name: "common"
+
+    - name: <<UPDATE>> Invoke chaincode on all nodes
+      raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer chaincode invoke --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --tls -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ invoke_channel_name }} -n {{ chaincode_common_name }} -c {{ chaincode_update_json | to_json }}'"
+      register: chaincode_output
+#      ignore_errors: true
+
+    - name: chaincode output <<UPDATE>>
+      debug:
+        var: chaincode_output.stdout_lines
+
+    - name: <<QUERY>>  Invoke chaincode on all nodes
+      raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 peer chaincode invoke --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --tls -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ invoke_channel_name }} -n {{ chaincode_common_name }} -c {{ chaincode_query_json | to_json }}'"
+      register: chaincode_output
+#      ignore_errors: true
+
+    - name: chaincode output <<QUERY>>
+      debug:
+        var: chaincode_output.stdout_lines
+
+    - name: <<BC INFO>> Show info on channel common
+      raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer channel -c {{ invoke_channel_name }} getinfo'"
+      register: channel_output
+      ignore_errors: true
+
+    - name: channel output <<BC INFO>>
+      debug:
+        var: channel_output.stdout_lines
+
+    when: "'peer' in node_roles"

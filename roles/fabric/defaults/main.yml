@@ -1,0 +1,34 @@
+---
+fabric_version: "1.1.0"
+fabric_pack: "x86_64-{{ fabric_version }}"
+node_version: "8-alpine"
+kafka_version: "0.4.9"
+#nginx_version:
+#fabric_baseos_version:
+#fabric_rest_version:
+
+fabric_docker_images:
+  - image: "hyperledger/fabric-ca"
+    version: "{{ fabric_pack }}"
+  - image: "hyperledger/fabric-orderer"
+    version: "{{ fabric_pack }}"
+  - image: "hyperledger/fabric-peer"
+    version: "{{ fabric_pack }}"
+  - image: "hyperledger/fabric-ccenv"
+    version: "{{ fabric_pack }}"
+  - image: "hyperledger/fabric-tools"
+    version: "{{ fabric_pack }}"
+  - image: "hyperledger/fabric-baseos"
+    version: "{{ fabric_baseos_version | default('x86_64-0.4.6') }}"
+  - image: "dockeraltoros/fabric-rest"
+    version: "{{ fabric_rest_version | default('latest') }}"
+  - image: "nginx"
+    version: "{{ nginx_version | default('latest') }}"
+  - image: "node"
+    version: "{{ node_version | default('latest') }}"
+
+kafka_docker_images:
+  - image: hyperledger/fabric-kafka
+    version: "{{ kafka_version }}"
+  - image: hyperledger/fabric-zookeeper
+    version: "{{ kafka_version }}"

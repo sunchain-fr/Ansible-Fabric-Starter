@@ -1,0 +1,38 @@
+---
+# An example of basic hosts-file configuration where first node hosts orderer
+all:
+  hosts: # localhost connection parameters, used for storing configuration while transferring it between nodes
+    localhost:
+      ansible_connection: local
+  vars:
+    domain: example.com
+    # Disable kafka orderer
+    kafka_orderer: false
+  children:
+    nodes:
+      hosts:
+        orderer.example.com:
+          node_roles: # Describes which containers will run on this node
+            - root_orderer
+            - orderer
+            - peer
+            - root_peer
+          org: mainorg # Organization name
+          ansible_host: 172.16.16.1 # Real ip address or domain name of the machine
+          ansible_user: username # User with sudo access
+          ansible_private_key_file: ~/path-to-private-key # Private key to identify ourselves
+        # Same structure for any other nodes
+        one.example.com:
+          node_roles:
+            - peer
+          org: one
+          ansible_host: 172.16.16.2
+          ansible_user: username
+          ansible_private_key_file: ~/path-to-private-key
+        two.example.com:
+          node_roles:
+            - peer
+          org: two
+          ansible_host: 172.16.16.3
+          ansible_user: username
+          ansible_private_key_file: ~/path-to-private-key

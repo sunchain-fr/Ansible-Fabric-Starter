@@ -1,0 +1,153 @@
+#
+# Copyright Altoros. All Rights Reserved.
+#
+
+version: '2'
+
+volumes:
+  peer0.{{ org }}.{{ domain }}:
+  peer1.{{ org }}.{{ domain }}:
+
+services:
+
+  ca.{{ org }}.{{ domain }}:
+    container_name: ca.{{ org }}.{{ domain }}
+    image: hyperledger/fabric-ca:{{ fabric_pack }}
+#    restart: always
+    environment:
+      - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
+      - FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca.{{ org }}.{{ domain }}-cert.pem
+      - FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY
+      - FABRIC_CA_SERVER_TLS_ENABLED=true
+      - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca.{{ org }}.{{ domain }}-cert.pem
+      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY
+#    ports:
+#      - CA_PORT:7054
+    command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
+    volumes:
+      - {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/ca/:/etc/hyperledger/fabric-ca-server-config
+      - {{ fabric_artifacts }}/fabric-ca-server-config-{{ org }}.yaml:/etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml
+
+  peer0.{{ org }}.{{ domain }}:
+    container_name: peer0.{{ org }}.{{ domain }}
+    extends:
+      file: base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer0.{{ org }}.{{ domain }}
+      - CORE_PEER_LOCALMSPID={{ org }}MSP
+      - CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051
+    ports:
+      - {{ peer0_port }}:7051
+      - {{ event0_port }}:7053
+    volumes:
+        - {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/:/etc/hyperledger/crypto/peer
+        - peer0.{{ org }}.{{ domain }}:/var/hyperledger/production
+    depends_on:
+      - ca.{{ org }}.{{ domain }}
+    extra_hosts:
+{% for fabric_host in groups['nodes'] %}
+{% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
+{% if 'orderer' in hostvars[fabric_host].node_roles %}
+      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% if 'peer' in hostvars[fabric_host].node_roles %}
+      -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+      -  peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+  peer1.{{ org }}.{{ domain }}:
+    container_name: peer1.{{ org }}.{{ domain }}
+    extends:
+      file: base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer1.{{ org }}.{{ domain }}
+      - CORE_PEER_LOCALMSPID={{ org }}MSP
+      - CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051
+    ports:
+      - {{ peer1_port }}:7051
+      - {{ event1_port }}:7053
+    volumes:
+        - {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer1.{{ org }}.{{ domain }}/:/etc/hyperledger/crypto/peer
+        - peer1.{{ org }}.{{ domain }}:/var/hyperledger/production
+    depends_on:
+      - ca.{{ org }}.{{ domain }}
+    extra_hosts:
+{% for fabric_host in groups['nodes'] %}
+{% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
+{% if 'orderer' in hostvars[fabric_host].node_roles %}
+      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% if 'peer' in hostvars[fabric_host].node_roles %}
+      -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+      -  peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+  # fabric-rest api server
+  api.{{ org }}.{{ domain }}:
+    extends:
+      file: base.yaml
+      service: api-base
+    container_name: api.{{ org }}.{{ domain }}
+    ports:
+      - {{ api_port }}:4000
+    environment:
+      - ORG={{ org }}
+      - PORT=4000
+    depends_on:
+      - peer0.{{ org }}.{{ domain }}
+      - peer1.{{ org }}.{{ domain }}
+    extra_hosts:
+{% for fabric_host in groups['nodes'] %}
+{% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
+{% if 'orderer' in hostvars[fabric_host].node_roles %}
+      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% if 'peer' in hostvars[fabric_host].node_roles %}
+      -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+      -  peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+  cli.{{ domain }}:
+    container_name: cli.{{ domain }}
+    extends:
+      file: base.yaml
+      service: cli-base
+    volumes:
+      - {{ fabric_artifacts }}/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls:/etc/hyperledger/crypto/orderer/tls
+
+  cli.{{ org }}.{{ domain }}:
+    container_name: cli.{{ org }}.{{ domain }}
+    extends:
+      service: cli.{{ domain }}
+    environment:
+      - CORE_PEER_LOCALMSPID={{ org }}MSP
+    volumes:
+        - {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/users/Admin@{{ org }}.{{ domain }}:/etc/hyperledger/crypto/peer
+    extra_hosts:
+{% for fabric_host in groups['nodes'] %}
+{% if 'orderer' in hostvars[fabric_host].node_roles %}
+      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% endfor %}
+
+  cliNoCryptoVolume.{{ org }}.{{ domain }}:
+    container_name: cliNoCryptoVolume.{{ org }}.{{ domain }}
+    extends:
+      file: base.yaml
+      service: cli-base
+    environment:
+      - CORE_PEER_LOCALMSPID={{ org }}MSP
+    extra_hosts:
+{% for fabric_host in groups['nodes'] %}
+{% if 'orderer' in hostvars[fabric_host].node_roles %}
+      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% endfor %}

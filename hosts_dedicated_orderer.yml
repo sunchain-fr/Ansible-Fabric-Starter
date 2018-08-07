@@ -1,0 +1,55 @@
+---
+# This is an example of configuration file, where orderer is separated
+all:
+  hosts: # localhost connection parameters, used for storing configuration while transferring it between nodes
+    localhost:
+      ansible_connection: local
+  vars:
+    domain: example.com
+    additional_channels: # optional, common channels are created by default. Just comment it out, if you don't need additional channels.
+      - name: a-b # channel name
+        particapants: # Organizations, should be included in channel
+        - a
+        - c
+      - name: a-c
+        particapants:
+        - a
+        - c
+    # Disable kafka orderer
+    kafka_orderer: false
+  children:
+    nodes:
+      hosts:
+        orderer.example.com:
+          node_roles: # Describes which containers will run on this node
+            - root_orderer
+            - orderer
+          org: orderer # Organization name
+          ansible_host: 172.16.16.1 # Real ip address or domain name of the machine
+          ansible_user: username  # User with sudo access
+          ansible_private_key_file: ~/path-to-private-key # Private key to identify ourselves
+        # Same structure for any other nodes
+        a.example.com:
+          node_roles:
+            - peer
+            - root_peer
+          org: a
+          ansible_host: 172.16.16.2
+          ansible_user: username
+          ansible_private_key_file: ~/path-to-private-key
+
+        b.example.com:
+          node_roles:
+            - peer
+          org: b
+          ansible_host: 172.16.16.3
+          ansible_user: username
+          ansible_private_key_file: ~/path-to-private-key
+
+        c.example.com:
+          node_roles:
+            - peer
+          org: c
+          ansible_host: 172.16.16.4
+          ansible_user: username
+          ansible_private_key_file: ~/path-to-private-key
