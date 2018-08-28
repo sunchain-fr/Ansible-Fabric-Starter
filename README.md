@@ -39,7 +39,7 @@ Please note, that by default it's only transferred to target hosts, so you need 
 
 ##### **install-dependencies.yml**
 
-Calls mentioned earlier roles, to install all necessary software and prepare thrget hosts for deployment.
+Calls mentioned earlier roles, to install all necessary software and prepare target hosts for deployment.
 
 ##### **config-network.yml**
 
