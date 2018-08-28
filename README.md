@@ -245,7 +245,7 @@ If deployment is performed for the first time, you may want to install all depen
 Or if you'd like to keep your inventory configuration in `hosts.yml`:
 ```ansible-playbook install-dependencies.yml```
 
-After all nodes provisioned with all necessary software, we can configure and start our blockchain network:
+After all the nodes are provisioned with all the necessary software, you can deploy the blockchain network to the configured instances:
 
 ```ansible-playbook config-network.yml -i hosts_kafka.yml```
 
