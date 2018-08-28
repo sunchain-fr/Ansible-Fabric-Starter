@@ -10,10 +10,14 @@ all:
       - name: a-b # channel name
         particapants: # Organizations, should be included in channel
         - a
-        - c
+        - b
       - name: a-c
         particapants:
         - a
+        - c
+      - name: c-b
+        particapants:
+        - b
         - c
     # Disable kafka orderer
     kafka_orderer: false

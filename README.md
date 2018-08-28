@@ -155,10 +155,14 @@ Let's describe the most complicated example of `hosts_kafka.yml` configuration:
          - name: a-b # channel name
            particapants: # Organizations, should be included in channel
            - a
-           - c
+           - b
          - name: a-c
            particapants:
            - a
+           - c
+         - name: b-c
+           particapants:
+           - b
            - c
        kafka_orderer: true  # Enable kafka orderer, we'll have 4 brokers and 3 zookeepers.
        orderer_count: 3 # Amount of orderers in network, assumed that it equals to amount of organization, so each org will have an own orderer copy

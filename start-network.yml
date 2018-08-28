@@ -176,11 +176,6 @@
       - name: Creating common channels
         raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "peer channel create -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c common -f /etc/hyperledger/artifacts/channel/common.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
 
-      - name: Creating other channels, if any
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "peer channel create -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
-        loop: "{{ additional_channels }}"
-        when: "additional_channels is defined"
-
       - name: Changing ownership of channel block files
         raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
@@ -189,22 +184,8 @@
 
       - raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 peer channel join -b common.block"'
 
-      - name: Joining other channels, if any
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer channel join -b {{ item.name }}.block"'
-        loop: "{{ additional_channels }}"
-        when: "additional_channels is defined"
-
-      - raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 peer channel join -b {{ item.name }}.block"'
-        loop: "{{ additional_channels }}"
-        when: "additional_channels is defined"
-
       - name: Instantiating chaincode for common channel
         raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer chaincode instantiate -n {{ chaincode_common_name }} -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C common --tls --cafile  /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt'"
-
-      - name: Instantiating chaincode for other channels, if any
-        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer chaincode instantiate -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -c {{ chanicode_bilateral_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ item.name }} --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt'"
-        loop: "{{ additional_channels }}"
-        when: "additional_channels is defined"
 
       - name: Create all folders for rsync..
         file:
@@ -219,7 +200,43 @@
 
       when: "'root_peer' in node_roles"
 
-    - name: Joining channels
+    - name: Creating addtional channels, if any
+      block:
+
+      - name: Creating other channels
+        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "peer channel create -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+        loop: "{{ additional_channels }}"
+        when: "org in item.particapants[0]"
+
+      - name: Changing ownership of channel block files
+        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+
+      - name: Synchronize genrated block files (artifacts)
+        synchronize: src="{{ fabric_artifacts }}/*.block" dest="./artifacts/" mode=pull recursive=yes
+        loop: "{{ additional_channels }}"
+        when: "org in item.particapants[0]"
+
+      - name: Synchronize genrated block files (artifacts)
+        become: true
+        synchronize: src="artifacts" dest="{{ fabric_starter_workdir }}" recursive=yes
+
+      - name: Joining other channels
+        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer channel join -b {{ item.name }}.block"'
+        loop: "{{ additional_channels }}"
+        when: "org in item.particapants"
+
+      - raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 peer channel join -b {{ item.name }}.block"'
+        loop: "{{ additional_channels }}"
+        when: "org in item.particapants"
+
+      - name: Instantiating chaincode for other channels, if any
+        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer chaincode instantiate -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -c {{ chanicode_bilateral_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ item.name }} --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt'"
+        loop: "{{ additional_channels }}"
+        when: "org in item.particapants[0]"
+
+      when: "additional_channels is defined and 'peer' in node_roles"
+
+    - name: Joining common channels by other nodes
       block:
 
       - name: Synchronize genrated block files (artifacts)
@@ -230,15 +247,6 @@
         raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer channel join -b common.block"'
 
       - raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 peer channel join -b common.block"'
-
-      - name: Joining other channels, if any
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer channel join -b {{ item.name }}.block"'
-        loop: "{{ additional_channels }}"
-        when: "additional_channels is defined"
-
-      - raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 peer channel join -b {{ item.name }}.block"'
-        loop: "{{ additional_channels }}"
-        when: "additional_channels is defined"
 
       when: "'root_peer' not in node_roles and 'peer' in node_roles"
 
