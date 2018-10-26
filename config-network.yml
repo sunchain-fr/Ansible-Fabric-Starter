@@ -76,8 +76,8 @@
     - name: Adding generated CA private keys filenames
       raw: 'sed -i -e "s/CA_PRIVATE_KEY/$(basename `ls -t {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/ca/*_sk`)/g" {{ docker_artifacts }}/docker-compose-{{ org }}.yaml'
 
-    - name: Generating orgConfig.json
-      raw: 'docker-compose --file  {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cliNoCryptoVolume.{{ org }}.{{ domain }}" bash -c "FABRIC_CFG_PATH=./ configtxgen  -printOrg {{ org }}MSP > {{ org }}Config.json"'
+#    - name: Generating orgConfig.json
+#      raw: 'docker-compose --file  {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cliNoCryptoVolume.{{ org }}.{{ domain }}" bash -c "FABRIC_CFG_PATH=./ configtxgen  -printOrg {{ org }}MSP > {{ org }}Config.json"'
 
     - name: Create all folders for rsync..
       file:
@@ -153,5 +153,20 @@
     synchronize: src="./artifacts/{{ item.from }}" dest="{{ fabric_artifacts }}/{{ item.to }}" recursive=yes
     loop: "{{ files_to_rsync_nodes_phase1 }}"
     when: "'orderer' in node_roles and 'root_orderer' not in node_roles"
+
+  - name: Update anchor peers
+    block:
+      - name: Generating anchor peer updates for common channels
+        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "common" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-common.tx -channelID "common" -asOrg {{ org }}MSP'
+
+      - name: Generating anchor peer updates for other channels, if defined
+        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ item.name }}.tx -channelID "{{ item.name }}" -asOrg {{ org }}MSP'
+        loop: "{{ additional_channels }}"
+        when: "additional_channels is defined and org in item.particapants"
+
+      - name: Changing artifacts ownership
+        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
+
+    when: "'peer' in node_roles"
 
 - import_playbook: start-network.yml

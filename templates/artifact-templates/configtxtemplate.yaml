@@ -163,10 +163,14 @@ Application: &ApplicationDefaults
 Profiles:
 
     OrdererGenesis:
+        Capabilities:
+            <<: *ChannelCapabilities
         Orderer:
             <<: *OrdererDefaults
             Organizations:
                 - *OrdererOrg
+            Capabilities:
+                <<: *OrdererCapabilities
         Consortiums:
             SampleConsortium:
                 Organizations:
@@ -185,6 +189,8 @@ Profiles:
               - *{{ hostvars[fabric_host].org }}
 {% endif %}
 {% endfor %}
+            Capabilities:
+                <<: *ApplicationCapabilities
 {% if additional_channels is defined %}
 {% for channel in additional_channels %}
     {{ channel.name }}:
@@ -195,5 +201,7 @@ Profiles:
 {% for particapant in channel.particapants %}
               - *{{ particapant }}
 {% endfor %}
+            Capabilities:
+                <<: *ApplicationCapabilities
 {% endfor %}
 {% endif %}
