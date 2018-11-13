@@ -182,8 +182,12 @@
 
       - raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b common.block"'
 
+#      Use this chaincode instantiate command if you'd like to use private collections feature, same in bilateral channels if defined.
+#      - name: Instantiating chaincode for common channel with private collections
+#        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_common_name }} -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C common --tls --cafile  /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --collections-config $GOPATH/src/reference/collections_config.json'"
+
       - name: Instantiating chaincode for common channel
-        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_common_name }} -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C common --tls --cafile  /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --collections-config $GOPATH/src/reference/collections_config.json'"
+        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_common_name }} -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C common --tls --cafile  /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt'"
 
       - name: Create all folders for rsync..
         file:
