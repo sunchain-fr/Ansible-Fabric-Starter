@@ -8,7 +8,6 @@ services:
       service: zookeeper-base
     environment:
       - ZOO_MY_ID={{ zookeeper_id }}
-#      - ZOO_SERVERS=server.1=zookeeper0:2888:3888 server.2=zookeeper1:2889:3889 server.3=zookeeper2:2890:3890
       - ZOO_SERVERS={% for fabric_host in groups['nodes'] %}{% if 'zookeeper' in hostvars[fabric_host].node_roles %}server.{{hostvars[fabric_host].zookeeper_id}}=zookeeper.{{ hostvars[fabric_host].inventory_hostname }}:{{ zookeper_ports[1] }}:{{ zookeper_ports[2] }} {% endif %}{% endfor %}
 
     ports:

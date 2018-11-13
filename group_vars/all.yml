@@ -8,6 +8,12 @@ docker_restart_policy: "always"
 
 project_name: "hl-demo"
 
+# Use couchdb in peers instead of leveldb
+#use_couchdb: 'yes'
+use_couchdb: 'no'
+couchdb_port: 5984
+couchdb_version: "0.4.14"
+
 # Hyperledger framework version
 fabric_version: "1.2.0"
 fabric_pack: "amd64-{{ fabric_version }}"
@@ -20,7 +26,7 @@ zookeper_ports:
   - '2888'
   - '3888'
 kafka_broker_port: 9092
-kafka_version: "0.4.10"
+kafka_version: "0.4.14"
 
 orderer_port: 7050
 

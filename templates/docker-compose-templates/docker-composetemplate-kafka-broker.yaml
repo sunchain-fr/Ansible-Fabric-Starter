@@ -13,7 +13,6 @@ services:
       - KAFKA_ADVERTISED_PORT={{ kafka_broker_port }}
       - KAFKA_MIN_INSYNC_REPLICAS={{ kafka_replicas }}
       - KAFKA_DEFAULT_REPLICATION_FACTOR={{ kafka_replication_factor }}
-#      - KAFKA_ZOOKEEPER_CONNECT=zookeeper0:2181,zookeeper1:2182,zookeeper2:2183
       - KAFKA_ZOOKEEPER_CONNECT={% for fabric_host in groups['nodes'] %}{% if 'zookeeper' in hostvars[fabric_host].node_roles %}zookeeper.{{ hostvars[fabric_host].inventory_hostname }}:{{ zookeper_ports[0] }}{% if not loop.last %},{% endif %}{% endif %}{% endfor %}
 
     ports:

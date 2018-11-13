@@ -15,7 +15,7 @@ services:
     image: hyperledger/fabric-orderer:{{ fabric_pack }}
     environment:
       - ORDERER_HOST=orderer{{ orderer_id | default() }}.{{ domain }}
-      - ORDERER_GENERAL_LOGLEVEL=debug
+      - ORDERER_GENERAL_LOGLEVEL=info
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
       - ORDERER_GENERAL_GENESISMETHOD=file
       - ORDERER_GENERAL_GENESISFILE=/etc/hyperledger/configtx/genesis.block
