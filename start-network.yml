@@ -2,6 +2,13 @@
 - hosts: nodes
   tasks:
 
+    - name: Perfom check for 'newcomers' flag
+      fail:
+        msg: "newcomers flag is defined. Are you sure, you want to destroy existing network? ..Aborting."
+      tags:
+        - safetycheck
+      when: "newcomers is defined"
+
     - name: Clean all previous dockers, if any
       raw: "docker rm -f $(docker ps -a | grep {{ domain }} | awk '{print $1};')"
       ignore_errors: true
