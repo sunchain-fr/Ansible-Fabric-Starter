@@ -36,6 +36,8 @@ services:
 
   cli.{{ domain }}:
     container_name: cli.{{ domain }}
+    environment:
+      - FABRIC_CFG_PATH=/etc/hyperledger/artifacts
     extends:
       file: base.yaml
       service: cli-base
