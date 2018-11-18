@@ -76,8 +76,8 @@
     - name: Adding generated CA private keys filenames
       raw: 'sed -i -e "s/CA_PRIVATE_KEY/$(basename `ls -t {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/ca/*_sk`)/g" {{ docker_artifacts }}/docker-compose-{{ org }}.yaml'
 
-#    - name: Generating orgConfig.json
-#      raw: 'docker-compose --file  {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cliNoCryptoVolume.{{ org }}.{{ domain }}" bash -c "FABRIC_CFG_PATH=./ configtxgen  -printOrg {{ org }}MSP > {{ org }}Config.json"'
+    - name: Generating orgConfig.json
+      raw: 'docker-compose --file  {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cliNoCryptoVolume.{{ org }}.{{ domain }}" bash -c "FABRIC_CFG_PATH=./ configtxgen  -printOrg {{ org }}MSP > {{ org }}Config.json"'
 
     - name: Create all folders for rsync..
       file:

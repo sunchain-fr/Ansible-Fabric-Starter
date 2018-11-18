@@ -86,6 +86,8 @@ orderer_templates:
     to: "{{ fabric_artifacts }}/cryptogen-{{ domain }}.yaml"
 
 files_to_rsync_orderer:
+  - from: "*.json"
+    to: ""
   - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/msp"
     to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}"
   - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/tls/ca.crt"
