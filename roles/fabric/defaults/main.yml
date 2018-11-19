@@ -1,8 +1,8 @@
 ---
-fabric_version: "1.1.0"
-fabric_pack: "x86_64-{{ fabric_version }}"
+fabric_version: "1.2.0"
+fabric_pack: "amd64-{{ fabric_version }}"
 node_version: "8-alpine"
-kafka_version: "0.4.9"
+fabric_thirdparty_version: "0.4.14"
 #nginx_version:
 #fabric_baseos_version:
 #fabric_rest_version:
@@ -19,7 +19,7 @@ fabric_docker_images:
   - image: "hyperledger/fabric-tools"
     version: "{{ fabric_pack }}"
   - image: "hyperledger/fabric-baseos"
-    version: "{{ fabric_baseos_version | default('x86_64-0.4.6') }}"
+    version: "{{ fabric_thirdparty_version | default('latest') }}"
   - image: "dockeraltoros/fabric-rest"
     version: "{{ fabric_rest_version | default('latest') }}"
   - image: "nginx"
@@ -29,6 +29,6 @@ fabric_docker_images:
 
 kafka_docker_images:
   - image: hyperledger/fabric-kafka
-    version: "{{ kafka_version }}"
+    version: "{{ fabric_thirdparty_version }}"
   - image: hyperledger/fabric-zookeeper
-    version: "{{ kafka_version }}"
+    version: "{{ fabric_thirdparty_version }}"

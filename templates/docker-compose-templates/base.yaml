@@ -21,7 +21,6 @@ services:
       # The following setting skips the gossip handshake since we are
       # are not doing mutual TLS
       - CORE_PEER_GOSSIP_SKIPHANDSHAKE=true
-      - CORE_PEER_PROFILE_ENABLED=true
       - CORE_PEER_MSPCONFIGPATH=/etc/hyperledger/crypto/peer/msp
       - CORE_PEER_TLS_ENABLED=true
       - CORE_PEER_TLS_KEY_FILE=/etc/hyperledger/crypto/peer/tls/server.key
@@ -72,11 +71,11 @@ services:
       - {{ fabric_starter_workdir }}/www/artifacts:/usr/share/nginx/html
 
   zookeeper-base:
-    image: hyperledger/fabric-zookeeper:{{ kafka_version }}
+    image: hyperledger/fabric-zookeeper:{{ fabric_thirdparty_version }}
     restart: {{ docker_restart_policy }}
 
   kafka-base:
-    image: hyperledger/fabric-kafka:{{ kafka_version }}
+    image: hyperledger/fabric-kafka:{{ fabric_thirdparty_version }}
     restart: {{ docker_restart_policy }}
     environment:
       - KAFKA_MESSAGE_MAX_BYTES=103809024 # 99 * 1024 * 1024 B

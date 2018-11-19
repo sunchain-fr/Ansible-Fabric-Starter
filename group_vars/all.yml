@@ -12,11 +12,12 @@ project_name: "hl-demo"
 #use_couchdb: 'yes'
 use_couchdb: 'no'
 couchdb_port: 5984
-couchdb_version: "0.4.14"
 
 # Hyperledger framework version
 fabric_version: "1.2.0"
 fabric_pack: "amd64-{{ fabric_version }}"
+# fabric_thirdparty_version needed for couchdb, kafka etc..
+fabric_thirdparty_version: "0.4.14"
 node_version: "8-alpine"
 
 # Default HL fabric ports
@@ -26,7 +27,6 @@ zookeper_ports:
   - '2888'
   - '3888'
 kafka_broker_port: 9092
-kafka_version: "0.4.14"
 
 orderer_port: 7050
 

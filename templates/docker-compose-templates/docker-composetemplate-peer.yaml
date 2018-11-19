@@ -165,7 +165,7 @@ services:
 {% if use_couchdb == 'yes' %}
   couchdb.{{ org }}.{{ domain }}:
     container_name: couchdb.{{ org }}.{{ domain }}
-    image: hyperledger/fabric-couchdb:{{ couchdb_version }}
+    image: hyperledger/fabric-couchdb:{{ fabric_thirdparty_version }}
     restart: {{ docker_restart_policy }}
     # Populate the COUCHDB_USER and COUCHDB_PASSWORD to set an admin user and password
     # for CouchDB.  This will prevent CouchDB from operating in an "Admin Party" mode.
