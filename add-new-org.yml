@@ -192,13 +192,13 @@
       file:
         path: "./artifacts/{{ item.to }}"
         state: directory
-      loop: "{{ files_to_rsync_nodes_phase1 }}"
+      loop: "{{ files_to_rsync_nodes_phase1 }} + {{ files_to_rsync_nodes_phase2 }}"
       delegate_to: localhost
 
     - name: Synchronize genrated block files (artifacts)
       become: true
       synchronize: src="{{ fabric_artifacts }}/{{ item.from }}" dest="./artifacts/{{ item.to }}" mode=pull recursive=yes
-      loop: "{{ files_to_rsync_nodes_phase1 }}"
+      loop: "{{ files_to_rsync_nodes_phase1 }} + {{ files_to_rsync_nodes_phase2 }}"
 
     when: "'root_orderer' in node_roles"
 
@@ -247,6 +247,10 @@
     raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel update -f /etc/hyperledger/artifacts/channel/config_common_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c common --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
     when: "'root_peer' in node_roles"
 
+  - name: Stop cli container..
+    raw: 'docker stop cli.{{ org }}.{{ domain }}'
+    when: "'root_peer' in node_roles"
+
   - name: Restarting orderer docker containers
     block:
 
@@ -281,13 +285,13 @@
   - name: Bootstrap new orgs
     block:
 
-      - name: Generating anchor peer updates for common channels
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "common" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-common.tx -channelID "common" -asOrg {{ org }}MSP'
-
-      - name: Generating anchor peer updates for other channels, if defined
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ item.name }}.tx -channelID "{{ item.name }}" -asOrg {{ org }}MSP'
-        loop: "{{ additional_channels }}"
-        when: "additional_channels is defined and org in item.particapants"
+#      - name: Generating anchor peer updates for common channels
+#        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "common" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-common.tx -channelID "common" -asOrg {{ org }}MSP'
+#
+#      - name: Generating anchor peer updates for other channels, if defined
+#        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ item.name }}.tx -channelID "{{ item.name }}" -asOrg {{ org }}MSP'
+#        loop: "{{ additional_channels }}"
+#        when: "additional_channels is defined and org in item.particapants"
 
       - name: Changing artifacts ownership
         raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
@@ -303,7 +307,6 @@
         become: true
         synchronize: src="./artifacts/{{ item.from }}" dest="{{ fabric_artifacts }}/{{ item.to }}" recursive=yes
         loop: "{{ files_to_rsync_nodes_phase1 }}"
-        when: "orderer_count is not defined or orderer_count <= 1"
 
       - name: Synchronize www-client folder
         synchronize: src="www-client" dest="{{ fabric_starter_workdir }}" recursive=yes
@@ -340,8 +343,8 @@
         - "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
         when: "additional_channels is defined"
 
-      - name: Updating channels anchor peers
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c common -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-common.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+#      - name: Updating channels anchor peers
+#        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c common -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-common.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
 
     when: "'peer' in node_roles and 'newcomer' in node_roles"
 
@@ -353,10 +356,10 @@
       loop: "{{ additional_channels }}"
       when: "org in item.particapants[0]"
 
-    - name: Updating anchor peers
-      raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
-      loop: "{{ additional_channels }}"
-      when: "org in item.particapants"
+#    - name: Updating anchor peers
+#      raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+#      loop: "{{ additional_channels }}"
+#      when: "org in item.particapants"
 
     - name: Changing ownership of channel block files
       raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
