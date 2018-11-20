@@ -1,6 +1,6 @@
 ---
 #
-# hosts.yml configuration draft for adding new orgs
+# hosts.yml configuration draft for adding new org (d)
 # to running network brought by ansible-fabric-starter.
 #
 # Please note, that only kakfa-orderer based configuration
@@ -14,26 +14,43 @@ all:
       ansible_connection: local
   vars:
     domain: example.com
-#    additional_channels: # optional, common channels are created by default. Just comment it out, if you don't need additional channels.
-#      - name: a-b # channel name
-#        particapants: # Organizations, should be included in channel
-#        - a
-#        - b
-#      - name: a-c
-#        particapants:
-#        - a
-#        - c
-#      - name: b-c
-#        particapants:
-#        - b
-#        - c
-    kafka_orderer: true
-    orderer_count: 4 # Increase orderer conunt according to your new network size.
-    kafka_replicas: 2
-    kafka_replication_factor: 3
+    additional_channels:
+      - name: a-b # Note, that you CAN NOT rename channel
+        particapants:
+        - a
+        - b
+        - d # just add an org name to existing channels
+      - name: a-c
+        particapants:
+        - a
+        - c
+      - name: b-c # Note, that you CAN NOT rename channel
+        particapants:
+        - b
+        - c
+        - d # just add an org name to existing channels
 
+    #
+    # Completly new channels should be defined to the system in new_channels variable.
+    #
+
+    new_channels:
+      - name: a-d
+        particapants:
+        - a
+        - d
+
+    ############
+
+    ############
+
+    orderer_count: 4 # Increase orderer conunt according to your new network size.
     newcomers: yes # Define a newcomers flag, to pass safery check.
 
+    ############
+    kafka_orderer: true
+    kafka_replicas: 2
+    kafka_replication_factor: 3
   children:
     nodes:
       hosts:
@@ -105,3 +122,6 @@ all:
           ansible_host: 192.168.1.2
           ansible_user: debian
           ansible_ssh_port: 22
+
+
+###########
