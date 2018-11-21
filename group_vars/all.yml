@@ -18,6 +18,7 @@ fabric_version: "1.2.0"
 fabric_pack: "amd64-{{ fabric_version }}"
 # fabric_thirdparty_version needed for couchdb, kafka etc..
 fabric_thirdparty_version: "0.4.14"
+fabric_rest_version: "0.12.1"
 node_version: "8-alpine"
 
 # Default HL fabric ports

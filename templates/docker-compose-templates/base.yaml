@@ -56,7 +56,7 @@ services:
     working_dir: /etc/hyperledger/artifacts
 
   api-base:
-    image: dockeraltoros/fabric-rest
+    image: dockeraltoros/fabric-rest:{{ fabric_rest_version }}
     restart: {{ docker_restart_policy }}
     volumes:
      - {{ fabric_starter_workdir }}/artifacts:/usr/src/artifacts
