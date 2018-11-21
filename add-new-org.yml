@@ -155,6 +155,13 @@
         loop: "{{ additional_channels|product(new_orgs)|list }}"
         when: "additional_channels is defined and ch_loop.1 in ch_loop.0.particapants and org in ch_loop.0.particapants[0]"
 
+      - name: Modifying testchainid channel
+        import_tasks: playbooks/modify-channel.yml
+        vars:
+          mod_channel: testchainid
+          mod_channel_participants: "{{ new_orgs }}"
+        when: "'root_peer' in node_roles"
+
       - name: Generating other channels config transactions, if any
         raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml run --rm "cli.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputCreateChannelTx "./channel/{{ item.name }}.tx" -channelID "{{ item.name }}"'
         loop: "{{ new_channels }}"
@@ -213,6 +220,10 @@
     loop: "{{ files_to_rsync_nodes_phase1 }}"
     when: "'peer' in node_roles"
 
+  - name: Updating testchainid channel with new config..
+    raw: 'docker start cli.{{ domain }} && sleep 3 && docker exec cli.{{ domain }} bash -c "peer channel update -f /etc/hyperledger/artifacts/channel/config_testchainid_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c testchainid --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+    when: "'root_orderer' in node_roles"
+
   - name: Updating common channel with new config..
     raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel update -f /etc/hyperledger/artifacts/channel/config_common_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c common --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
     when: "'root_peer' in node_roles"
@@ -221,10 +232,6 @@
     raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel update -f /etc/hyperledger/artifacts/channel/config_{{ item.0.name }}_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.0.name }} --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
     loop: "{{ additional_channels | product(new_orgs) | list }}"
     when: "'peer' in node_roles and additional_channels is defined and org in item.0.particapants[0] and item.1 in item.0.particapants"
-
-  - name: Stop cli container..
-    raw: 'docker stop cli.{{ org }}.{{ domain }}'
-    when: "'root_peer' in node_roles"
 
   - name: Restarting orderer docker containers
     block:

@@ -130,8 +130,16 @@ services:
     extends:
       file: base.yaml
       service: cli-base
+{% if 'root_orderer' in node_roles%}
+    environment:
+      - CORE_PEER_LOCALMSPID=OrdererMSP
+    volumes:
+        - {{ fabric_artifacts }}/crypto-config/ordererOrganizations/{{ domain }}/users/Admin@{{ domain }}:/etc/hyperledger/crypto/peer
+        - {{ fabric_artifacts }}/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls:/etc/hyperledger/crypto/orderer/tls
+{% else %}
     volumes:
       - {{ fabric_artifacts }}/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls:/etc/hyperledger/crypto/orderer/tls
+{% endif %}
 
   cli.{{ org }}.{{ domain }}:
     container_name: cli.{{ org }}.{{ domain }}

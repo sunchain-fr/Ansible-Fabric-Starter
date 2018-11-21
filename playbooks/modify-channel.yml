@@ -8,6 +8,11 @@
 
 - name: Fetching channel block
   raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "peer channel fetch config ./channel/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+  when: "'testchainid' not in mod_channel"
+
+- name: Fetching testchainid channel block
+  raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ domain }} bash -c "peer channel fetch config ./channel/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+  when: "'testchainid' in mod_channel"
 
 - name: Decoding channel block
   raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "configtxlator proto_decode --input ./channel/config_{{ mod_channel }}_current.pb --type common.Block | jq .data.data[0].payload.data.config > config_{{ mod_channel }}.json"'
@@ -18,6 +23,12 @@
 - name: Adding new org(s) to a configuraion
   raw: "cd {{ fabric_artifacts }} && jq -s '.[0] * {\"channel_group\":{\"groups\":{\"Application\":{\"groups\": {\"{{ item }}MSP\":.[1]}}}}}' config_{{ mod_channel }}.json {{ item }}Config.json >& config_{{ mod_channel }}_new.json"
   loop: "{{ mod_channel_participants }}"
+  when: "'testchainid' not in mod_channel"
+
+- name: Adding new org(s) to a configuraion
+  raw: "cd {{ fabric_artifacts }} && jq -s '.[0] * {\"channel_group\":{\"groups\":{\"Consortiums\":{\"groups\":{\"SampleConsortium\":{\"groups\": {\"{{ item }}MSP\":.[1]}}}}}}}' config_{{ mod_channel }}.json {{ item }}Config.json >& config_{{ mod_channel }}_new.json"
+  loop: "{{ mod_channel_participants }}"
+  when: "'testchainid' in mod_channel"
 
 - name: Encoding old channel block
   raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "configtxlator proto_encode --input config_{{ mod_channel }}.json --type common.Config --output ./channel/config_{{ mod_channel }}_no_headers.pb"'
