@@ -79,6 +79,9 @@
     - name: Generating orgConfig.json
       raw: 'docker-compose --file  {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cliNoCryptoVolume.{{ org }}.{{ domain }}" bash -c "FABRIC_CFG_PATH=./ configtxgen  -printOrg {{ org }}MSP > {{ org }}Config.json"'
 
+    - name: Changing artifacts file ownership
+      raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
+
     - name: Create all folders for rsync..
       file:
         path: "./artifacts/{{ item.to }}"
