@@ -255,6 +255,9 @@
         loop: "{{ additional_channels }}"
         when: "org in item.particapants[0]"
 
+      - name: Changing ownership of channel block files
+        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+
       when: "additional_channels is defined and 'peer' in node_roles"
 
     - name: Joining common channels by other nodes
@@ -268,6 +271,9 @@
         raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b common.block"'
 
       - raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b common.block"'
+
+      - name: Changing ownership of channel block files
+        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
 
       when: "'root_peer' not in node_roles and 'peer' in node_roles"
 

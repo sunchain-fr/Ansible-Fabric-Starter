@@ -205,3 +205,17 @@ Profiles:
                 <<: *ApplicationCapabilities
 {% endfor %}
 {% endif %}
+{% if new_channels is defined %}
+{% for channel in new_channels %}
+    {{ channel.name }}:
+        Consortium: SampleConsortium
+        Application:
+            <<: *ApplicationDefaults
+            Organizations:
+{% for particapant in channel.particapants %}
+              - *{{ particapant }}
+{% endfor %}
+            Capabilities:
+                <<: *ApplicationCapabilities
+{% endfor %}
+{% endif %}

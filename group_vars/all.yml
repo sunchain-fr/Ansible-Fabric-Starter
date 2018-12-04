@@ -18,6 +18,7 @@ fabric_version: "1.2.0"
 fabric_pack: "amd64-{{ fabric_version }}"
 # fabric_thirdparty_version needed for couchdb, kafka etc..
 fabric_thirdparty_version: "0.4.14"
+fabric_rest_version: "0.12.1"
 node_version: "8-alpine"
 
 # Default HL fabric ports
@@ -86,6 +87,8 @@ orderer_templates:
     to: "{{ fabric_artifacts }}/cryptogen-{{ domain }}.yaml"
 
 files_to_rsync_orderer:
+  - from: "*.json"
+    to: ""
   - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/msp"
     to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}"
   - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/tls/ca.crt"

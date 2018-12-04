@@ -1,0 +1,127 @@
+---
+#
+# hosts.yml configuration draft for adding new org (d)
+# to running network brought by ansible-fabric-starter.
+#
+# Please note, that only kakfa-orderer based configuration
+# can be extended with new orgs. This is the hosts_kafka.yml
+# modifyed example, to show how to add new orgs..
+#
+
+all:
+  hosts:
+    localhost:
+      ansible_connection: local
+  vars:
+    domain: example.com
+    additional_channels:
+      - name: a-b # Note, that you CAN NOT rename channel
+        particapants:
+        - a
+        - b
+        - d # just add an org name to existing channels
+      - name: a-c
+        particapants:
+        - a
+        - c
+      - name: b-c # Note, that you CAN NOT rename channel
+        particapants:
+        - b
+        - c
+        - d # just add an org name to existing channels
+
+    #
+    # Completly new channels should be defined to the system in new_channels variable.
+    #
+
+    new_channels:
+      - name: a-d
+        particapants:
+        - a
+        - d
+
+    ############
+
+    ############
+
+    orderer_count: 4 # Increase orderer conunt according to your new network size.
+    newcomers: yes # Define a newcomers flag, to pass safery check.
+
+    ############
+    kafka_orderer: true
+    kafka_replicas: 2
+    kafka_replication_factor: 3
+  children:
+    nodes:
+      hosts:
+        kafka.example.com:
+          node_roles:
+            - zookeeper
+            - kafka_broke
+          org: kafka
+          zookeeper_id: 0
+          kafka_broker_id: 0
+          ansible_host: 192.168.4.2
+          ansible_user: debian
+          ansible_ssh_port: 22
+
+        a.example.com:
+          node_roles:
+            - root_orderer
+            - orderer
+            - peer
+            - root_peer
+            - zookeeper
+            - kafka_broker
+          org: a
+          orderer_id: 0
+          zookeeper_id: 1
+          kafka_broker_id: 1
+          ansible_host: 192.168.4.1
+          ansible_user: debian
+          ansible_ssh_port: 22
+
+        b.example.com:
+          node_roles:
+            - orderer
+            - peer
+            - zookeeper
+            - kafka_broker
+          org: b
+          orderer_id: 1
+          zookeeper_id: 2
+          kafka_broker_id: 2
+          ansible_host: 192.168.3.1
+          ansible_user: debian
+          ansible_ssh_port: 22
+
+        c.example.com:
+          node_roles:
+            - peer
+            - orderer
+            - kafka_broker
+          org: c
+          orderer_id: 2
+          kafka_broker_id: 3
+          ansible_host: 192.168.2.1
+          ansible_user: debian
+          ansible_ssh_port: 22
+
+
+#
+#   New organization defined as usual, but with a newcomer role:
+#
+
+        d.example.com:
+          node_roles:
+            - peer
+            - orderer
+            - newcomer # Add a 'newcomer' role to each new org.
+          org: d
+          orderer_id: 3
+          ansible_host: 192.168.1.2
+          ansible_user: debian
+          ansible_ssh_port: 22
+
+
+###########
