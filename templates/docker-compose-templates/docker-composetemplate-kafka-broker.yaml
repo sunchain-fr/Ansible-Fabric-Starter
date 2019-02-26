@@ -18,8 +18,6 @@ services:
 
     ports:
       - {{ kafka_broker_port }}:9092
-#    volumes:
-#      - {{ fabric_artifacts }}/hosts/{{ inventory_hostname_short }}/kafka_hosts:/etc/hosts
     extra_hosts:
 {% for fabric_host in groups['nodes'] %}
 {% if 'zookeeper' in hostvars[fabric_host].node_roles %}

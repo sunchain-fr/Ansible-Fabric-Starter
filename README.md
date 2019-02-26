@@ -117,7 +117,8 @@ Modify your inventory file in a following way: __(Example configuration can be f
 3. Define new channels in `new_channels` variable.
 4. Increase amount of orderers, according to the new size of your network.
 5. Define all new organizations with `peer`, `orderer` and a `newcomer` flags.
-6. Run deployment on testing environment with `ansible-playbook add-new-org.yml -i hosts_new_org.yml`
+6. Install all dependencies on the new machione: `ansible-playbook install-dependencies.yml -i hosts_new_org.yml`
+7. Run deployment on testing environment with `ansible-playbook add-new-org.yml -i hosts_new_org.yml`
 
 ### *node_roles* hostvar description
 
@@ -309,4 +310,4 @@ They are generated in `fabric_starter_workdir`, defined in `group_vars/all.yml`.
 
 Feel free to ask me any questions at:
 
-* **E-mail**: `hleb.ioda@altoros.com`
+* **E-mail**: `altoros-bc-lab@altoros.com`

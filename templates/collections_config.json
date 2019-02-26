@@ -1,0 +1,11 @@
+[
+{% set reqPeerCount = [] %}
+{% set mxPeerCount = [] %}
+	{
+		"name": "collection",
+		"policy": "OR({% for fabric_host in groups['nodes'] %}{% if 'peer' in hostvars[fabric_host].node_roles %}{{ mxPeerCount.append('1') }}{{ reqPeerCount.append('1') }}'{{ hostvars[fabric_host].org }}MSP.member'{% if not loop.last %}, {% endif %}{% endif %}{% endfor %})",
+		"requiredPeerCount": 1,
+		"maxPeerCount": {{ mxPeerCount|length }},
+		"blockToLive": 0
+	}
+]

@@ -7,6 +7,7 @@
 		}{% for fabric_host in groups['nodes'] %}{% if 'peer' in hostvars[fabric_host].node_roles %},
 		"{{ hostvars[fabric_host].org }}": {
 			"name": "peer{{ hostvars[fabric_host].org }}",
+			"ip_address": "{{ hostvars[fabric_host].ansible_host }}",
 			"mspid": "{{ hostvars[fabric_host].org }}MSP",
 			"ca": "https://ca.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ ca_port }}",
 			"peer0": {

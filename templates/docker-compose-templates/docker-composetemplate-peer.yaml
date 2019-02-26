@@ -147,6 +147,8 @@ services:
       service: cli.{{ domain }}
     environment:
       - CORE_PEER_LOCALMSPID={{ org }}MSP
+      - CC_ENDORSEMENT_COMMON={{ chaincode_endorcement_policy_common }}
+      - CC_ENDORSEMENT_BILATERAL={{ chaincode_endorcement_policy_bilateral }}
     volumes:
         - {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/users/Admin@{{ org }}.{{ domain }}:/etc/hyperledger/crypto/peer
     extra_hosts:

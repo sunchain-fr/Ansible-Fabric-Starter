@@ -8,17 +8,21 @@ docker_restart_policy: "always"
 
 project_name: "hl-demo"
 
+fabric_starter_workdir: "/home/{{ ansible_user }}/{{ project_name }}"
+docker_artifacts: "{{ fabric_starter_workdir }}/dockercompose"
+fabric_artifacts: "{{ fabric_starter_workdir }}/artifacts"
+
 # Use couchdb in peers instead of leveldb
 #use_couchdb: 'yes'
 use_couchdb: 'no'
 couchdb_port: 5984
 
 # Hyperledger framework version
-fabric_version: "1.2.0"
+fabric_version: "1.4.0"
 fabric_pack: "amd64-{{ fabric_version }}"
 # fabric_thirdparty_version needed for couchdb, kafka etc..
 fabric_thirdparty_version: "0.4.14"
-fabric_rest_version: "0.12.1"
+fabric_rest_version: "latest"
 node_version: "8-alpine"
 
 # Default HL fabric ports
@@ -38,10 +42,6 @@ event0_port: 7053
 peer1_port: 7056
 event1_port: 7058
 
-fabric_starter_workdir: "/home/{{ ansible_user }}/{{ project_name }}"
-docker_artifacts: "{{ fabric_starter_workdir }}/dockercompose"
-fabric_artifacts: "{{ fabric_starter_workdir }}/artifacts"
-
 #Chaincode configs
 chaincode: "{{ fabric_starter_workdir }}/chaincode"
 chaincode_lang: "golang"
@@ -50,6 +50,12 @@ chaincode_common_name: "reference"
 chaincode_bilateral_name: "relationship"
 chanicode_common_init: '{"Args":["init","a","100","b","100"]}'
 chanicode_bilateral_init: '{"Args":["init","a","100","b","100"]}'
+
+chaincode_endorcement_policy_common: "OR({% for fabric_host in groups['nodes'] %}{% if ('peer' in hostvars[fabric_host].node_roles) %}{% raw %}'{% endraw %}{{ hostvars[fabric_host].org }}{% raw %}MSP.member'{% endraw %}{% if not loop.last %},{% endif %}{% endif %}{% endfor %})"
+chaincode_endorcement_policy_bilateral: "AND({% for fabric_host in groups['nodes'] %}{% if 'root_peer' in hostvars[fabric_host].node_roles %}{% raw %}'{% endraw %}{{ hostvars[fabric_host].org }}{% raw %}MSP.member'{% endraw %}{% endif %}{% endfor %})"
+
+collections_config_name: "collections_config.json"
+collections_config_path: "{{ chaincode }}/go/{{ chaincode_common_name }}/{{ collections_config_name }}"
 
 # Folders to create for configs
 fabric_artifacts_folders:

@@ -68,6 +68,11 @@
         dest: "{{ fabric_starter_workdir }}"
         recursive: yes
 
+    - name: Transfer collections config
+      template:
+        src: "collections_config.json"
+        dest: "{{ collections_config_path }}"
+
     - name: Transfer peer configuration files
       template:
         src: "{{ item.from }}"
