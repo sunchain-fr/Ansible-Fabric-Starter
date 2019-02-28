@@ -1,17 +1,16 @@
 ---
-- hosts: localhost
-  tasks:
-  - name: Clean local artifacts folder
-    file:
-      path: artifacts
-      state: "{{ item }}"
-    loop:
-      - "absent"
-      - "directory"
+#- hosts: localhost
+#  tasks:
+#  - name: Clean local artifacts folder
+#    file:
+#      path: artifacts
+#      state: "{{ item }}"
+#    loop:
+#      - "absent"
+#      - "directory"
 
 - hosts: nodes
   tasks:
-
   - name: Perfom check for 'newcomers' flag
     fail:
       msg: "newcomers flag is not defined. Are you sure, you are using right configuration? ..Aborting."
