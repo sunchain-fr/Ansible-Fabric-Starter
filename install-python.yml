@@ -1,0 +1,6 @@
+---
+- hosts: nodes
+  gather_facts: no
+  tasks:
+    - name: Install python
+      raw: "sudo apt update && sudo apt install python -y"
