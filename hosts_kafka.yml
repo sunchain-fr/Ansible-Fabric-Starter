@@ -14,7 +14,7 @@ all:
         particapants:
         - a
         - c
-      - name: c-b
+      - name: b-c
         particapants:
         - b
         - c

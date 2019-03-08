@@ -2,6 +2,7 @@
 - name: Assume all dependencies are installed.
   hosts: nodes
   become: true
+#  serial: 1
   roles:
     - common-packages
     - docker
