@@ -163,14 +163,14 @@
       - name: Install chaincode
         raw: "{{ item }}"
         loop:
-          - "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {{ chaincode_common_name }} -l {{ chaincode_lang }}'"
-          - "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {{ chaincode_common_name }} -l {{ chaincode_lang }}'"
+          - "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_common_name }} {% else %} {{ chaincode_common_name }} {% endif %} -l {{ chaincode_lang }}'"
+          - "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_common_name }} {% else %} {{ chaincode_common_name }} {% endif %} -l {{ chaincode_lang }}'"
 
       - name: Install chaincode for additional cahnnels, if any
         raw: "{{ item }}"
         loop:
-          - "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
-          - "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
+          - "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_bilateral_name }} {% else %} {{ chaincode_bilateral_name }} {% endif %} -l {{ chaincode_lang }}'"
+          - "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_bilateral_name }} {% else %} {{ chaincode_bilateral_name }} {% endif %} -l {{ chaincode_lang }}'"
         when: "additional_channels is defined"
 
       when: "'peer' in node_roles"
@@ -191,10 +191,10 @@
 
 #      Use this chaincode instantiate command if you'd like to use private collections feature, same in bilateral channels if defined.
 #      - name: Instantiating chaincode for common channel with private collections
-#        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_common_name }} -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -C common --tls --cafile  /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --collections-config $GOPATH/src/reference/collections_config.json'"
+#        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_common_name }} -l {{ chaincode_lang }} -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -C common --tls --cafile  /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --collections-config $GOPATH/src/reference/collections_config.json'"
 
       - name: Instantiating chaincode for common channel
-        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_common_name }} -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -C common --tls --cafile  /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt'"
+        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_common_name }} -l {{ chaincode_lang }} -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -C common --tls --cafile  /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt'"
 
       - name: Create all folders for rsync..
         file:
