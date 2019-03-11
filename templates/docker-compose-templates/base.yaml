@@ -52,7 +52,7 @@ services:
       - /var/run/:/host/var/run/
       - {{ fabric_starter_workdir }}/artifacts:/etc/hyperledger/artifacts
       - {{ fabric_starter_workdir }}/chaincode:/opt/chaincode
-      - {{ fabric_starter_workdir }}/chaincode/go:/opt/gopath/src
+      - {{ fabric_starter_workdir }}/chaincode/{{ chaincode_lang }}:/opt/gopath/src
     working_dir: /etc/hyperledger/artifacts
 
   api-base:

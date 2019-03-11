@@ -55,7 +55,7 @@ chaincode_endorcement_policy_common: "OR({% for fabric_host in groups['nodes'] %
 chaincode_endorcement_policy_bilateral: "AND({% for fabric_host in groups['nodes'] %}{% if 'root_peer' in hostvars[fabric_host].node_roles %}{% raw %}'{% endraw %}{{ hostvars[fabric_host].org }}{% raw %}MSP.member'{% endraw %}{% endif %}{% endfor %})"
 
 collections_config_name: "collections_config.json"
-collections_config_path: "{{ chaincode }}/go/{{ chaincode_common_name }}/{{ collections_config_name }}"
+collections_config_path: "{{ chaincode }}/{{ chaincode_lang }}/{{ chaincode_common_name }}/{{ collections_config_name }}"
 
 # Folders to create for configs
 fabric_artifacts_folders:
