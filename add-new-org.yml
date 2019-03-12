@@ -109,8 +109,10 @@
       delegate_to: localhost
 
     - name: Synchronize artifacts
-      synchronize: src="{{ fabric_artifacts }}/{{ item.from }}" dest="./artifacts/{{ item.to }}" mode=pull recursive=yes
-      loop: "{{ files_to_rsync_orderer }}"
+    - shell: (cd {{ fabric_artifacts }}; find . -maxdepth 1 -type f -iname "*.json") | rev | cut -d'/' -f1 | rev
+      register: files_to_copy
+    - fetch: src={{ fabric_artifacts }}/{{ item }} dest=./artifacts/
+      with_items: files_to_copy.stdout_lines
 
     when: "'peer' in node_roles and 'newcomer' in node_roles"
 
