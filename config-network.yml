@@ -99,7 +99,7 @@
       delegate_to: localhost
 
     - name: Synchronize artifacts
-    - shell: (cd {{ fabric_artifacts }}; find . -maxdepth 1 -type f -iname "*.json") | rev | cut -d'/' -f1 | rev
+      shell: (cd {{ fabric_artifacts }}; find . -maxdepth 1 -type f -iname "*.json") | rev | cut -d'/' -f1 | rev
       register: files_to_copy
     - fetch: src={{ fabric_artifacts }}/{{ item }} dest=./artifacts/
       with_items: files_to_copy.stdout_lines
