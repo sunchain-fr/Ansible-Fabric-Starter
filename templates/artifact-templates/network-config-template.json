@@ -17,8 +17,8 @@
 				"tls_cacerts": "crypto-config/peerOrganizations/{{ hostvars[fabric_host].org }}.{{ domain }}/peers/peer0.{{ hostvars[fabric_host].org }}.{{ domain }}/tls/ca.crt"
 			},
 			"peer1": {
-				"requests": "grpcs://peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ peer1_port }}",
-				"events": "grpcs://peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ event1_port }}",
+				"requests": "grpcs://peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ peer0_port }}",
+				"events": "grpcs://peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ event0_port }}",
 				"server-hostname": "peer1.{{ hostvars[fabric_host].org }}.{{ domain }}",
 				"tls_cacerts": "crypto-config/peerOrganizations/{{ hostvars[fabric_host].org }}.{{ domain }}/peers/peer1.{{ hostvars[fabric_host].org }}.{{ domain }}/tls/ca.crt"
 			},
