@@ -20,11 +20,11 @@
     when: "newcomers is defined"
 
   - name: Clean all previous dockers, if any
-    raw: "docker rm -f $(docker ps -aq)"
+    raw: "docker rm -f $(docker ps -a | grep {{ domain }} | awk '{print $1};')"
     ignore_errors: true
 
   - name: Clean all docker volumes
-    raw: "docker volume rm $(docker volume ls -q)"
+    raw: "docker volume rm $(docker volume ls -qf dangling=true)"
     ignore_errors: true
 
   - name: Findout UID
