@@ -1,0 +1,97 @@
+{
+  "network-configs": {
+    "network-1": {
+      "version": "1.0",
+      "clients": {
+        "client-1": {
+          "tlsEnable": true,
+          "organization": "{{ org }}",
+          "channel": "{{ common_channel_name }}",
+          "credentialStore": {
+            "path": "./tmp/crypto/credentialStore_{{ org }}/credential",
+            "cryptoStore": {
+              "path": "./tmp/crypto/credentialStore_{{ org }}/crypto"
+            }
+          }
+        }
+      },
+      "channels": {
+        "{{ common_channel_name }}": {
+          "peers": {
+            "peer0.{{ org }}.{{ domain }}": {}
+          },
+          "connection": {
+            "timeout": {
+              "peer": {
+                "endorser": "6000",
+                "eventHub": "6000",
+                "eventReg": "6000"
+              }
+            }
+          }
+        }
+{% if additional_channels is defined %}
+{% for channel in additional_channels %}
+{% for particapant in channel.particapants %}
+{% if org in particapant %},
+        "{{ channel.name }}": {
+          "peers": {
+            "peer0.{{ particapant }}.{{ domain }}": {}
+          },
+          "connection": {
+            "timeout": {
+              "peer": {
+                "endorser": "6000",
+                "eventHub": "6000",
+                "eventReg": "6000"
+              }
+            }
+          }
+        }
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}
+      },
+      "organizations": {
+        "{{ org }}": {
+          "mspid": "{{ org }}MSP",
+          "fullpath": false,
+          "adminPrivateKey": {
+            "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/users/Admin@{{ org }}.{{ domain }}/msp/keystore"
+          },
+          "signedCert": {
+            "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/users/Admin@{{ org }}.{{ domain }}/msp/signcerts"
+          }
+        },
+        "OrdererMSP": {
+          "mspid": "OrdererMSP",
+          "adminPrivateKey": {
+            "path": "/fabric/crypto-config/ordererOrganizations/{{ domain }}/users/Admin@{{ domain }}/msp/keystore"
+          }
+        }
+      },
+      "peers": {
+        "peer0.{{ hostvars[fabric_host].org }}.{{ domain }}": {
+          "url": "grpcs://peer0.{{ org }}.{{ domain }}:{{ peer0_port }}"
+          "tlsCACerts": {
+            "path": "/fabric/crypto-config/peerOrganizations/{{ hostvars[fabric_host].org }}.{{ domain }}/peers/peer0.{{ hostvars[fabric_host].org }}.{{ domain }}/tls/ca.crt"
+          },
+
+          "eventUrl": "grpcs://peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ event0_port }}",
+          "grpcOptions": {
+            "ssl-target-name-override": "peer0.{{ hostvars[fabric_host].org }}.{{ domain }}"
+          }
+        }
+      },
+      "orderers": {
+        "orderer{{ orderer_id | default() }}.{{ domain }}": {
+          "url": "grpcs://orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }}"
+        }
+      }
+    },
+    "network-2": {}
+  },
+  "configtxgenToolPath": "/fabric-path/fabric/bin",
+  "license": "Apache-2.0"
+}
