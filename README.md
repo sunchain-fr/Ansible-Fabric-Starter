@@ -5,6 +5,7 @@ Assumed that 1 physical (or virtual) host will serve one organisation, so **only
  
 ## Quick overview:
 * Hyperledger Fabric v1.4
+* TLS enabled on all configurations
 * kafka and solo orderers are supported
 * CouchDB and LevelDB peer database supprted
 * Configurable amount of organisations
@@ -122,7 +123,7 @@ Let's describe the most complicated example of `hosts_kafka.yml` configuration:
                - root_peer # This node will be used to create channels and instantiate chaincode
                - zookeeper # Hosts zookeeper container for kafka-cluster
                - kafka_broker # Hosts broker container for kafka-cluster
-               - explorer - hosts hyperledger fabric blockchain explorer
+               - explorer # Hosts hyperledger fabric blockchain explorer
              org: a
              orderer_id: 0 # ID of orderer-service which is running on this host
              zookeeper_id: 1
