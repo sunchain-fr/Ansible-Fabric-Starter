@@ -10,7 +10,7 @@
         invoke_channel_name: "a-b"
 
     - name: <<UPDATE>> Invoke chaincode on all nodes
-      raw: "docker exec cli.{{ org }}.{{ domain }} bash -c 'CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer chaincode invoke --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --tls -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ invoke_channel_name }} -n {{ chaincode_bilateral_name }} -c {{ chaincode_update_json | to_json }}'"
+      raw: "docker exec cli.{{ org }}.{{ domain }} bash -c 'peer chaincode invoke --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --tls -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ invoke_channel_name }} -n {{ chaincode_bilateral_name }} -c {{ chaincode_update_json | to_json }}'"
       register: chaincode_output
 #      ignore_errors: true
 
@@ -19,7 +19,7 @@
         var: chaincode_output.stdout_lines
 
     - name: <<QUERY>>  Invoke chaincode on all nodes
-      raw: "docker exec cli.{{ org }}.{{ domain }} bash -c 'CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 peer chaincode invoke --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --tls -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ invoke_channel_name }} -n {{ chaincode_bilateral_name }} -c {{ chaincode_query_json | to_json }}'"
+      raw: "docker exec cli.{{ org }}.{{ domain }} bash -c 'peer chaincode invoke --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt --tls -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ invoke_channel_name }} -n {{ chaincode_bilateral_name }} -c {{ chaincode_query_json | to_json }}'"
       register: chaincode_output
 #      ignore_errors: true
 
@@ -28,7 +28,7 @@
         var: chaincode_output.stdout_lines
 
     - name: <<BC INFO>> Show info on channel common
-      raw: "docker exec cli.{{ org }}.{{ domain }} bash -c 'CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 peer channel -c {{ invoke_channel_name }} getinfo'"
+      raw: "docker exec cli.{{ org }}.{{ domain }} bash -c 'peer channel -c {{ invoke_channel_name }} getinfo'"
       register: channel_output
       ignore_errors: true
 

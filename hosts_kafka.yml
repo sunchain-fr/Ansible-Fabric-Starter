@@ -45,6 +45,7 @@ all:
             - root_peer # This node will be used to create channels and instantiate chaincode
             - zookeeper # Hosts zookeeper container for kafka-cluster
             - kafka_broker # Hosts broker container for kafka-cluster
+            - explorer
           org: a
           orderer_id: 0 # ID of orderer-service which is running on this host
           zookeeper_id: 1

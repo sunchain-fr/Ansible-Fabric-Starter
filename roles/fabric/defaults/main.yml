@@ -32,3 +32,9 @@ kafka_docker_images:
     version: "{{ fabric_thirdparty_version }}"
   - image: hyperledger/fabric-zookeeper
     version: "{{ fabric_thirdparty_version }}"
+
+explorer_docker_images:
+  - image: "hyperledger/explorer-db"
+    version: "{{ hl_explorer_version | default('latest') }}"
+  - image: "hyperledger/explorer"
+    version: "{{ hl_explorer_version | default('latest') }}"

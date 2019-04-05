@@ -1,0 +1,48 @@
+version: '2'
+volumes:
+  explorer-db.{{ org }}.{{ domain }}:
+  explorer.{{ org }}.{{ domain }}:
+services:
+  explorer-db.{{ org }}.{{ domain }}:
+    image: hyperledger/explorer-db:{{ hl_explorer_version }}
+    container_name: explorer-db.{{ org }}.{{ domain }}
+    restart: {{ docker_restart_policy }}
+    environment:
+    # hyperledger explorer configs (used in migration scripts)
+    - DATABASE_DATABASE=fabricexplorer
+    - DATABASE_USERNAME=hppoc
+    - DATABASE_PASSWORD=password032
+    # postgresql configs:
+    - POSTGRES_USER=root
+    volumes:
+      - explorer-db.{{ org }}.{{ domain }}:/var/lib/postgresql/data
+
+  explorer.{{ org }}.{{ domain }}:
+    image: hyperledger/explorer:{{ hl_explorer_version }}
+    container_name: explorer.{{ org }}.{{ domain }}
+    restart: {{ docker_restart_policy }}
+    environment:
+    - DATABASE_HOST=db
+    - DATABASE_USERNAME=hppoc
+    - DATABASE_PASSWD=password032
+    volumes:
+      - {{ fabric_starter_workdir }}/artifacts/crypto-config:/fabric/crypto-config:ro
+      - explorer.{{ org }}.{{ domain }}:/tmp/crypto
+      - {{ fabric_starter_workdir }}/artifacts/explorer-config.json:/opt/explorer/app/platform/fabric/config.json:ro
+    ports:
+      - {{ hl_explorer_port }}:8080
+    links:
+      - explorer-db.{{ org }}.{{ domain }}:db
+    depends_on:
+      - explorer-db.{{ org }}.{{ domain }}
+    extra_hosts:
+{% for fabric_host in groups['nodes'] %}
+{% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
+{% if 'orderer' in hostvars[fabric_host].node_roles %}
+      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% if 'peer' in hostvars[fabric_host].node_roles %}
+      -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% endif %}
+{% endfor %}

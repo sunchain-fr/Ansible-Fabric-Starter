@@ -6,27 +6,27 @@ version: '2'
 
 volumes:
   peer0.{{ org }}.{{ domain }}:
-  peer1.{{ org }}.{{ domain }}:
+#  peer1.{{ org }}.{{ domain }}:
 
 services:
 
   ca.{{ org }}.{{ domain }}:
     container_name: ca.{{ org }}.{{ domain }}
     image: hyperledger/fabric-ca:{{ fabric_pack }}
-#    restart: always
+    restart: {{ docker_restart_policy }}
     environment:
       - FABRIC_CA_HOME=/etc/hyperledger/fabric-ca-server
       - FABRIC_CA_SERVER_CA_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca.{{ org }}.{{ domain }}-cert.pem
-      - FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY
+      - FABRIC_CA_SERVER_CA_KEYFILE=/etc/hyperledger/fabric-ca-server-config/server.key
       - FABRIC_CA_SERVER_TLS_ENABLED=true
       - FABRIC_CA_SERVER_TLS_CERTFILE=/etc/hyperledger/fabric-ca-server-config/ca.{{ org }}.{{ domain }}-cert.pem
-      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/CA_PRIVATE_KEY
-#    ports:
-#      - CA_PORT:7054
+      - FABRIC_CA_SERVER_TLS_KEYFILE=/etc/hyperledger/fabric-ca-server-config/server.key
+    ports:
+      - {{ ca_port }}:7054
     command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
     volumes:
       - {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/ca/:/etc/hyperledger/fabric-ca-server-config
-      - {{ fabric_artifacts }}/fabric-ca-server-config-{{ org }}.yaml:/etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml
+      - {{ fabric_artifacts }}/fabric-ca-server-{{ org }}.yaml:/etc/hyperledger/fabric-ca-server/fabric-ca-server-config.yaml
 
   peer0.{{ org }}.{{ domain }}:
     container_name: peer0.{{ org }}.{{ domain }}
@@ -37,7 +37,7 @@ services:
       - CORE_PEER_ID=peer0.{{ org }}.{{ domain }}
       - CORE_PEER_LOCALMSPID={{ org }}MSP
       - CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.{{ org }}.{{ domain }}:7051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.{{ org }}.{{ domain }}:7051
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.{{ org }}.{{ domain }}:7051
     ports:
       - {{ peer0_port }}:7051
@@ -58,45 +58,44 @@ services:
 {% endif %}
 {% if 'peer' in hostvars[fabric_host].node_roles %}
       -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
-      -  peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
 {% endif %}
 {% endif %}
 {% endfor %}
 
-  peer1.{{ org }}.{{ domain }}:
-    container_name: peer1.{{ org }}.{{ domain }}
-    extends:
-      file: base.yaml
-      service: peer-base
-    environment:
-      - CORE_PEER_ID=peer1.{{ org }}.{{ domain }}
-      - CORE_PEER_LOCALMSPID={{ org }}MSP
-      - CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051
-      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.{{ org }}.{{ domain }}:7051
-      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.{{ org }}.{{ domain }}:7051
-    ports:
-      - {{ peer1_port }}:7051
-      - {{ event1_port }}:7053
-    volumes:
-        - {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer1.{{ org }}.{{ domain }}/:/etc/hyperledger/crypto/peer
-        - peer1.{{ org }}.{{ domain }}:/var/hyperledger/production
-    depends_on:
-      - ca.{{ org }}.{{ domain }}
-{% if use_couchdb == 'yes' %}
-      - couchdb.{{ org }}.{{ domain }}
-{% endif %}
-    extra_hosts:
-{% for fabric_host in groups['nodes'] %}
-{% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
-{% if 'orderer' in hostvars[fabric_host].node_roles %}
-      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
-{% endif %}
-{% if 'peer' in hostvars[fabric_host].node_roles %}
-      -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
-      -  peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
-{% endif %}
-{% endif %}
-{% endfor %}
+#  peer1.{{ org }}.{{ domain }}:
+#    container_name: peer1.{{ org }}.{{ domain }}
+#    extends:
+#      file: base.yaml
+#      service: peer-base
+#    environment:
+#      - CORE_PEER_ID=peer1.{{ org }}.{{ domain }}
+#      - CORE_PEER_LOCALMSPID={{ org }}MSP
+#      - CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051
+#      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.{{ org }}.{{ domain }}:7051
+#      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.{{ org }}.{{ domain }}:7051
+#    ports:
+#      - {{ peer1_port }}:7051
+#      - {{ event1_port }}:7053
+#    volumes:
+#        - {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer1.{{ org }}.{{ domain }}/:/etc/hyperledger/crypto/peer
+#        - peer1.{{ org }}.{{ domain }}:/var/hyperledger/production
+#    depends_on:
+#      - ca.{{ org }}.{{ domain }}
+#{% if use_couchdb == 'yes' %}
+#      - couchdb.{{ org }}.{{ domain }}
+#{% endif %}
+#    extra_hosts:
+#{% for fabric_host in groups['nodes'] %}
+#{% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
+#{% if 'orderer' in hostvars[fabric_host].node_roles %}
+#      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+#{% endif %}
+#{% if 'peer' in hostvars[fabric_host].node_roles %}
+#      -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+#      -  peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+#{% endif %}
+#{% endif %}
+#{% endfor %}
 
   # fabric-rest api server
   api.{{ org }}.{{ domain }}:
@@ -111,7 +110,6 @@ services:
       - PORT=4000
     depends_on:
       - peer0.{{ org }}.{{ domain }}
-      - peer1.{{ org }}.{{ domain }}
     extra_hosts:
 {% for fabric_host in groups['nodes'] %}
 {% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
@@ -147,14 +145,20 @@ services:
       service: cli.{{ domain }}
     environment:
       - CORE_PEER_LOCALMSPID={{ org }}MSP
+      - CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051
       - CC_ENDORSEMENT_COMMON={{ chaincode_endorcement_policy_common }}
       - CC_ENDORSEMENT_BILATERAL={{ chaincode_endorcement_policy_bilateral }}
     volumes:
         - {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/users/Admin@{{ org }}.{{ domain }}:/etc/hyperledger/crypto/peer
     extra_hosts:
 {% for fabric_host in groups['nodes'] %}
+{% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
 {% if 'orderer' in hostvars[fabric_host].node_roles %}
       -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
+{% if 'peer' in hostvars[fabric_host].node_roles %}
+      -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+{% endif %}
 {% endif %}
 {% endfor %}
 

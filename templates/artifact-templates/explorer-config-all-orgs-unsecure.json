@@ -5,57 +5,80 @@
       "clients": {
         "client-1": {
           "tlsEnable": true,
-          "organization": "{{ org }}",
+{% for fabric_host in groups['nodes'] %}
+{% if 'root_peer' in hostvars[fabric_host].node_roles %}
+          "organization": "{{ hostvars[fabric_host].org }}",
           "channel": "{{ common_channel_name }}",
           "credentialStore": {
-            "path": "./tmp/crypto/credentialStore_{{ org }}/credential",
+            "path": "./tmp/crypto/credentialStore_{{ hostvars[fabric_host].org }}/credential",
             "cryptoStore": {
-              "path": "./tmp/crypto/credentialStore_{{ org }}/crypto"
+              "path": "./tmp/crypto/credentialStore_{{ hostvars[fabric_host].org }}/crypto"
+            }
+{% endif %}
+{% endfor %}
+          }
+        }{% if additional_channels is defined %},
+{% set chCount = [] %}
+{{ chCount.append('1') }}
+{% for channel in additional_channels %}
+{{ chCount.append('1') }}
+        "client-{{ chCount|length }}": {
+          "tlsEnable": true,
+          "organization": "{{ channel.particapants[0] }}",
+          "channel": "{{ channel.name }}",
+          "credentialStore": {
+            "path": "./tmp/crypto/credentialStore_{{ channel.particapants[0] }}/credential",
+            "cryptoStore": {
+              "path": "./tmp/crypto/credentialStore_{{ channel.particapants[0] }}/crypto"
             }
           }
-        }
+        }{% if not loop.last %},{% endif %}
+{% endfor %}
+{% endif %}
       },
       "channels": {
         "{{ common_channel_name }}": {
           "peers": {
-            "peer0.{{ org }}.{{ domain }}": {}
-          },
-          "connection": {
-            "timeout": {
-              "peer": {
-                "endorser": "6000",
-                "eventHub": "6000",
-                "eventReg": "6000"
-              }
-            }
-          }
-        }
-{% if additional_channels is defined %}
-{% for channel in additional_channels %}
-{% for particapant in channel.particapants %}
-{% if org in particapant %},
-        "{{ channel.name }}": {
-          "peers": {
-            "peer0.{{ particapant }}.{{ domain }}": {}
-          },
-          "connection": {
-            "timeout": {
-              "peer": {
-                "endorser": "6000",
-                "eventHub": "6000",
-                "eventReg": "6000"
-              }
-            }
-          }
-        }
+{% for fabric_host in groups['nodes'] %}
+{% if 'peer' in hostvars[fabric_host].node_roles %}
+            "peer0.{{ hostvars[fabric_host].org }}.{{ domain }}": {}{% if not loop.last %},{% endif %}
 {% endif %}
 {% endfor %}
+          },
+          "connection": {
+            "timeout": {
+              "peer": {
+                "endorser": "6000",
+                "eventHub": "6000",
+                "eventReg": "6000"
+              }
+            }
+          }
+        }{% if additional_channels is defined %},
+
+{% for channel in additional_channels %}
+        "{{ channel.name }}": {
+          "peers": {
+{% for particapant in channel.particapants %}
+            "peer0.{{ particapant }}.{{ domain }}": {}{% if not loop.last %},{% endif %}
+{% endfor %}
+          },
+          "connection": {
+            "timeout": {
+              "peer": {
+                "endorser": "6000",
+                "eventHub": "6000",
+                "eventReg": "6000"
+              }
+            }
+          }
+        }{% if not loop.last %},{% endif %}
 {% endfor %}
 {% endif %}
       },
       "organizations": {
 {% for fabric_host in groups['nodes'] %}
-{% if 'peer' in hostvars[fabric_host].node_roles and org in hostvars[fabric_host].org %}
+{% if 'peer' in hostvars[fabric_host].node_roles %}
         "{{ hostvars[fabric_host].org }}": {
           "mspid": "{{ hostvars[fabric_host].org }}MSP",
           "fullpath": false,
@@ -79,15 +102,14 @@
 {% for fabric_host in groups['nodes'] %}
 {% if 'peer' in hostvars[fabric_host].node_roles %}
         "peer0.{{ hostvars[fabric_host].org }}.{{ domain }}": {
-          "url": "grpcs://peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ peer0_port }}"{% if org in hostvars[fabric_host].org %},
           "tlsCACerts": {
             "path": "/fabric/crypto-config/peerOrganizations/{{ hostvars[fabric_host].org }}.{{ domain }}/peers/peer0.{{ hostvars[fabric_host].org }}.{{ domain }}/tls/ca.crt"
           },
-
+          "url": "grpcs://peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ peer0_port }}",
           "eventUrl": "grpcs://peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ event0_port }}",
           "grpcOptions": {
             "ssl-target-name-override": "peer0.{{ hostvars[fabric_host].org }}.{{ domain }}"
-          }{% endif %}
+          }
         }{% if not loop.last %},{% endif %}
 {% endif %}
 {% endfor %}

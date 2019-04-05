@@ -72,8 +72,6 @@ Organizations:
         AnchorPeers:
             - Host: peer0.{{ hostvars[fabric_host].org }}.{{ domain }}
               Port: {{ peer0_port }}
-            - Host: peer1.{{ hostvars[fabric_host].org }}.{{ domain }}
-              Port: {{ peer1_port }}
 {% endif %}
 {% endfor %}
 
@@ -361,7 +359,7 @@ Profiles:
                   - *{{ hostvars[fabric_host].org }}
 {% endif %}
 {% endfor %}
-    common:
+    {{ common_channel_name }}:
         Consortium: SampleConsortium
         Application:
             <<: *ApplicationDefaults

@@ -24,6 +24,7 @@ fabric_pack: "amd64-{{ fabric_version }}"
 fabric_thirdparty_version: "0.4.14"
 fabric_rest_version: "latest"
 node_version: "8-alpine"
+hl_explorer_version: 0.3.8
 
 # Default HL fabric ports
 
@@ -41,6 +42,9 @@ peer0_port: 7051
 event0_port: 7053
 peer1_port: 7056
 event1_port: 7058
+hl_explorer_port: 8080
+
+common_channel_name: "common"
 
 #Chaincode configs
 chaincode: "{{ fabric_starter_workdir }}/chaincode"
@@ -51,11 +55,20 @@ chaincode_bilateral_name: "relationship"
 chanicode_common_init: '{"Args":["init","a","100","b","100"]}'
 chanicode_bilateral_init: '{"Args":["init","a","100","b","100"]}'
 
-chaincode_endorcement_policy_common: "OR({% for fabric_host in groups['nodes'] %}{% if ('peer' in hostvars[fabric_host].node_roles) %}{% raw %}'{% endraw %}{{ hostvars[fabric_host].org }}{% raw %}MSP.member'{% endraw %}{% if not loop.last %},{% endif %}{% endif %}{% endfor %})"
-chaincode_endorcement_policy_bilateral: "AND({% for fabric_host in groups['nodes'] %}{% if 'root_peer' in hostvars[fabric_host].node_roles %}{% raw %}'{% endraw %}{{ hostvars[fabric_host].org }}{% raw %}MSP.member'{% endraw %}{% endif %}{% endfor %})"
+# Define endorsement policy only in case there is a need
+chaincode_endorcement_policy_common: ""
+chaincode_endorcement_policy_bilateral: ""
+#chaincode_endorcement_policy_common: "OR({% for fabric_host in groups['nodes'] %}{% if ('peer' in hostvars[fabric_host].node_roles) %}{% raw %}'{% endraw %}{{ hostvars[fabric_host].org }}{% raw %}MSP.member'{% endraw %}{% if not loop.last %},{% endif %}{% endif %}{% endfor %})"
+#chaincode_endorcement_policy_bilateral: "OR({% for fabric_host in groups['nodes'] %}{% if 'root_peer' in hostvars[fabric_host].node_roles %}{% raw %}'{% endraw %}{{ hostvars[fabric_host].org }}{% raw %}MSP.member'{% endraw %}{% endif %}{% endfor %})"
 
-collections_config_name: "collections_config.json"
-collections_config_path: "{{ chaincode }}/{{ chaincode_lang }}/{{ chaincode_common_name }}/{{ collections_config_name }}"
+# Define private collections configuration
+collections_config_param: ""
+collections_config_name: ""
+collections_config_path: ""
+
+#collections_config_param: "--collections_config"
+#collections_config_name: "collections_config.json"
+#collections_config_path: "{{ chaincode }}/{{ chaincode_lang }}/{{ chaincode_common_name }}/{{ collections_config_name }}"
 
 # Folders to create for configs
 fabric_artifacts_folders:
@@ -93,14 +106,16 @@ orderer_templates:
     to: "{{ fabric_artifacts }}/cryptogen-{{ domain }}.yaml"
 
 files_to_rsync_orderer:
-  - from: "*.json"
+  - from: "{{ org }}Config.json"
     to: ""
   - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/msp"
     to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}"
   - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/tls/ca.crt"
     to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/tls"
-  - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer1.{{ org }}.{{ domain }}/tls/ca.crt"
-    to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer1.{{ org }}.{{ domain }}/tls"
+  - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/msp/tlscacerts/tlsca.{{ org }}.{{ domain }}-cert.pem"
+    to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/msp/tlscacerts"
+#  - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer1.{{ org }}.{{ domain }}/tls/ca.crt"
+#    to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer1.{{ org }}.{{ domain }}/tls"
 
 files_to_rsync_nodes_phase1:
   - from: "crypto-config/ordererOrganizations/{{ domain }}/orderers"
@@ -108,7 +123,11 @@ files_to_rsync_nodes_phase1:
   - from: "channel"
     to: ""
 files_to_rsync_nodes_phase2:
-  - from: "network-config.json"
-    to: ""
   - from: "*.block"
     to: ""
+
+files_hl_explorer:
+  - from: "artifact-templates/explorer-config.json"
+    to: "{{ fabric_artifacts }}/explorer-config.json"
+  - from: "docker-compose-templates/docker-composetemplate-explorer.yaml"
+    to: "{{ docker_artifacts }}/docker-compose-explorer.yaml"

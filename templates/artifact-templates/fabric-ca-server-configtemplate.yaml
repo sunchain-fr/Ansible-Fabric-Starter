@@ -106,16 +106,16 @@ registry:
 
   # Contains identity information which is used when LDAP is disabled
   identities:
-     - name: admin
-       pass: adminpw
-       type: client
-       affiliation: ""
-       maxenrollments: -1
-       attrs:
-          hf.Registrar.Roles: "client,user,peer,validator,auditor"
-          hf.Registrar.DelegateRoles: "client,user,validator,auditor"
-          hf.Revoker: true
-          hf.IntermediateCA: true
+    - name: admin
+      pass: adminpw
+      type: client
+      affiliation: ""
+      maxenrollments: -1
+      attrs:
+        hf.Registrar.Roles: "client,user,peer,validator,auditor"
+        hf.Registrar.DelegateRoles: "client,user,validator,auditor"
+        hf.Revoker: true
+        hf.IntermediateCA: true
 
 #############################################################################
 #  Database section
@@ -131,12 +131,12 @@ db:
   type: sqlite3
   datasource: fabric-ca-server.db
   tls:
-      enabled: false
-      certfiles:
-        - db-server-cert.pem
-      client:
-        certfile: db-client-cert.pem
-        keyfile: db-client-key.pem
+    enabled: false
+    certfiles:
+      - db-server-cert.pem
+    client:
+      certfile: db-client-cert.pem
+      keyfile: db-client-key.pem
 
 #############################################################################
 #  LDAP section
@@ -146,24 +146,24 @@ db:
 #  2) To retrieve identity attributes
 #############################################################################
 ldap:
-   # Enables or disables the LDAP client (default: false)
-   # If this is set to true, the "registry" section is ignored.
-   enabled: false
-   # The URL of the LDAP server
-   url: ldap://<adminDN>:<adminPassword>@<host>:<port>/<base>
-   tls:
-      certfiles:
-        - ldap-server-cert.pem
-      client:
-         certfile: ldap-client-cert.pem
-         keyfile: ldap-client-key.pem
+  # Enables or disables the LDAP client (default: false)
+  # If this is set to true, the "registry" section is ignored.
+  enabled: false
+  # The URL of the LDAP server
+  url: ldap://cn=admin,${LDAP_BASE_DN}:${ENROLL_SECRET}@ldap.${DOMAIN}:389/${LDAP_BASE_DN} #ldap://<adminDN>:<adminPassword>@<host>:<port>/<base>
+  tls:
+    certfiles:
+      - ldap-server-cert.pem
+    client:
+      certfile: ldap-client-cert.pem
+      keyfile: ldap-client-key.pem
 
 #############################################################################
 #  Affiliation section
 #############################################################################
 affiliations:
-   {{ org }}:
-      - department1
+  {{ org }}:
+    - {{ org }}
 
 #############################################################################
 #  Signing section
@@ -179,18 +179,18 @@ affiliations:
 #  (See RFC 5280, section 4.2.1.9)
 #############################################################################
 signing:
-    default:
+  default:
+    usage:
+      - digital signature
+    expiry: 8760h
+  profiles:
+    ca:
       usage:
-        - digital signature
-      expiry: 8760h
-    profiles:
-      ca:
-         usage:
-           - cert sign
-         expiry: 43800h
-         caconstraint:
-           isca: true
-           maxpathlen: 0
+        - cert sign
+      expiry: 43800h
+      caconstraint:
+        isca: true
+        maxpathlen: 0
 
 ###########################################################################
 #  Certificate Signing Request (CSR) section.
@@ -211,31 +211,31 @@ signing:
 #     CA certificates though it can still issue end entity certificates.
 ###########################################################################
 csr:
-   cn: fabric-ca-server
-   names:
-      - C: US
-        ST: "North Carolina"
-        L:
-        O: Hyperledger
-        OU: Fabric
-   hosts:
-     - localhost
-   ca:
-      expiry: 131400h
-      pathlength: 1
+  cn: fabric-ca-server
+  names:
+    - C: US
+      ST: "North Carolina"
+      L:
+      O: Hyperledger
+      OU: Fabric
+  hosts:
+    - localhost
+  ca:
+    expiry: 131400h
+    pathlength: 1
 
 #############################################################################
 # BCCSP (BlockChain Crypto Service Provider) section is used to select which
 # crypto library implementation to use
 #############################################################################
 bccsp:
-    default: SW
-    sw:
-        hash: SHA2
-        security: 256
-        filekeystore:
-            # The directory used for the software file-based keystore
-            keystore: msp/keystore
+  default: SW
+  sw:
+    hash: SHA2
+    security: 256
+    filekeystore:
+      # The directory used for the software file-based keystore
+      keystore: msp/keystore
 
 #############################################################################
 # Multi CA section

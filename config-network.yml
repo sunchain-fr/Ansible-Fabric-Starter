@@ -20,11 +20,11 @@
     when: "newcomers is defined"
 
   - name: Clean all previous dockers, if any
-    raw: "docker rm -f $(docker ps -a | grep {{ domain }} | awk '{print $1};')"
+    raw: "docker rm -f $(docker ps -aq)"
     ignore_errors: true
 
   - name: Clean all docker volumes
-    raw: "docker volume rm $(docker volume ls -qf dangling=true)"
+    raw: "docker volume rm $(docker volume ls -q)"
     ignore_errors: true
 
   - name: Findout UID
@@ -72,6 +72,7 @@
       template:
         src: "collections_config.json"
         dest: "{{ collections_config_path }}"
+      when: "collections_config_path != ''"
 
     - name: Transfer peer configuration files
       template:
@@ -79,17 +80,17 @@
         dest: "{{ item.to }}"
       loop: "{{ peer_templates }}"
 
-    - name: Generate crypto material with cryptogen
-      raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'sleep 2 && cryptogen generate --config=cryptogen-{{ org }}.yaml'"
+    - name: Start cli container without crypto volumes
+      raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d 'cliNoCryptoVolume.{{ org }}.{{ domain }}'"
 
-    - name: Adding generated CA private keys filenames
-      raw: 'sed -i -e "s/CA_PRIVATE_KEY/$(basename `ls -t {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/ca/*_sk`)/g" {{ docker_artifacts }}/docker-compose-{{ org }}.yaml'
+    - name: Generate crypto material with cryptogen
+      raw: "docker exec 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'cryptogen generate --config=cryptogen-{{ org }}.yaml'"
 
     - name: Generating orgConfig.json
-      raw: 'docker-compose --file  {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cliNoCryptoVolume.{{ org }}.{{ domain }}" bash -c "FABRIC_CFG_PATH=./ configtxgen  -printOrg {{ org }}MSP > {{ org }}Config.json"'
+      raw: 'docker exec "cliNoCryptoVolume.{{ org }}.{{ domain }}" bash -c "FABRIC_CFG_PATH=./ configtxgen  -printOrg {{ org }}MSP > {{ org }}Config.json"'
 
     - name: Changing artifacts ownership
-      raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
+      raw: "docker exec 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
 
     - name: Create all folders for rsync..
       file:
@@ -121,20 +122,23 @@
   - name: Configure orderer
     block:
 
+    - name: Start cli orderer container
+      raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml up -d 'cli.{{ domain }}'"
+
     - name: Generating crypto material with cryptogen
-      raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml run --rm "cli.{{ domain }}" bash -c "sleep 2 && cryptogen generate --config=cryptogen-{{ domain }}.yaml"'
+      raw: 'docker exec "cli.{{ domain }}" bash -c "cryptogen generate --config=cryptogen-{{ domain }}.yaml"'
 
     - name: Generating orderer genesis block with configtxgen
-      raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml run --rm "cli.{{ domain }}" configtxgen -profile OrdererGenesis -outputBlock ./channel/genesis.block'
+      raw: 'docker exec "cli.{{ domain }}" configtxgen -profile OrdererGenesis -outputBlock ./channel/genesis.block'
 
     - name: Changing artifacts file ownership
-      raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml run --rm "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+      raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
     - name: Generating common channel config transaction
-      raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml run --rm "cli.{{ domain }}" configtxgen -profile "common" -outputCreateChannelTx "./channel/common.tx" -channelID "common"'
+      raw: 'docker exec "cli.{{ domain }}" configtxgen -profile "{{ common_channel_name }}" -outputCreateChannelTx "./channel/{{ common_channel_name }}.tx" -channelID "{{ common_channel_name }}"'
 
     - name: Generating other channels config transactions, if any
-      raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml run --rm "cli.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputCreateChannelTx "./channel/{{ item.name }}.tx" -channelID "{{ item.name }}"'
+      raw: 'docker exec "cli.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputCreateChannelTx "./channel/{{ item.name }}.tx" -channelID "{{ item.name }}"'
       loop: "{{ additional_channels }}"
       when: "additional_channels is defined"
 
@@ -166,18 +170,22 @@
     loop: "{{ files_to_rsync_nodes_phase1 }}"
     when: "'orderer' in node_roles and 'root_orderer' not in node_roles"
 
-  - name: Update anchor peers
+  - name: Reanme generated private keys to server.key
+    shell: find {{ fabric_artifacts }}/crypto-config -iname "*_sk*" -exec bash -c 'mv $0 $(echo $0 | sed -e "s/[^/]*_sk/server.key/")' {} \;
+
+  - name: Generate anchor peers updates
     block:
+
       - name: Generating anchor peer updates for common channels
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "common" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-common.tx -channelID "common" -asOrg {{ org }}MSP'
+        raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cliNoCryptoVolume.{{ org }}.{{ domain }}" configtxgen -profile "{{ common_channel_name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ common_channel_name }}.tx -channelID "{{ common_channel_name }}" -asOrg {{ org }}MSP'
 
       - name: Generating anchor peer updates for other channels, if defined
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ item.name }}.tx -channelID "{{ item.name }}" -asOrg {{ org }}MSP'
+        raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cliNoCryptoVolume.{{ org }}.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ item.name }}.tx -channelID "{{ item.name }}" -asOrg {{ org }}MSP'
         loop: "{{ additional_channels }}"
         when: "additional_channels is defined and org in item.particapants"
 
       - name: Changing artifacts ownership
-        raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm 'cli.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
+        raw: "docker exec 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
 
     when: "'peer' in node_roles"
 

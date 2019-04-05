@@ -19,3 +19,10 @@
     state: present
   loop: "{{ kafka_docker_images }}"
   when: kafka_orderer
+
+- name: Pull hyperledger explorer images
+  docker_image:
+    name: "{{ item.image }}:{{ item.version }}"
+    state: present
+  loop: "{{ explorer_docker_images }}"
+  when: "'explorer' in node_roles"

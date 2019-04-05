@@ -17,22 +17,23 @@ all:
             - orderer
             - peer
             - root_peer
+            - explorer
           org: mainorg # Organization name
-          ansible_host: 3.85.159.106 # Real ip address or domain name of the machine
+          ansible_host: 1.2.3.4 # Real ip address or domain name of the machine
           ansible_user: ubuntu # User with sudo access
-          ansible_private_key_file: ~/Downloads/fs-test.pem # Private key to identify ourselves
+          ansible_private_key_file: ~/test.pem # Private key to identify ourselves
         # Same structure for any other nodes
         one.example.com:
           node_roles:
             - peer
           org: one
-          ansible_host: 3.86.31.87
+          ansible_host: 1.2.3.5
           ansible_user: ubuntu
-          ansible_private_key_file: ~/Downloads/fs-test.pem
+          ansible_private_key_file: ~/test.pem
         two.example.com:
           node_roles:
             - peer
           org: two
-          ansible_host: 52.207.206.47
+          ansible_host: 1.2.3.6
           ansible_user: ubuntu
-          ansible_private_key_file: ~/Downloads/fs-test.pem
+          ansible_private_key_file: ~/test.pem
