@@ -250,7 +250,7 @@
     - name: Update common anchor peers
       block:
         - name: Updating channels anchor peers
-          raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ common_channel_name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-common.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+          raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ common_channel_name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ common_channel_name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
 
       when: "'peer' in node_roles"
 
