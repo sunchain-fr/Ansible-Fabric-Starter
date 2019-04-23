@@ -171,30 +171,44 @@ Adjust additional network configuration like _ports_, or _chaincode parameters_ 
 
 **Please note, that every new deployment configured to delete existing docker volumes and containers. That means, if you redeploy on working system, all data will be lost.**
 
-First, insure that you are in project-root directory:
-```cd ansible-fabric-starter```
+First, ensure that you are in project-root directory:
+
+```bash 
+cd ansible-fabric-starter
+```
 
 If your instances are debian-based (having apt package manager) you can automatically install python via:
 
-```ansible-playbook install-python.yml -i hosts_kafka.yml```
+```bash
+ansible-playbook install-python.yml -i hosts_kafka.yml
+```
 
 By default ansible inventory is located in hosts.yml file. You can rename any configuration from example, or specify correct inventory via `-i` parameter.
 If deployment is performed for the first time, you may want to install all dependencies like docker etc.:
 
-```ansible-playbook install-dependencies.yml -i hosts_kafka.yml```
+```bash 
+ansible-playbook install-dependencies.yml -i hosts_kafka.yml
+```
 
 Or if you'd like to keep your inventory configuration in `hosts.yml`:
-```ansible-playbook install-dependencies.yml```
+
+```bash
+ansible-playbook install-dependencies.yml
+```
 
 After all the nodes are provisioned with all the necessary software, you can deploy the blockchain network to the configured instances:
 
-```ansible-playbook config-network.yml -i hosts_kafka.yml```
+```bash
+ansible-playbook config-network.yml -i hosts_kafka.yml
+```
 
 _hint:_ _`config-network.yml` will include `start-network.yml` automatically._
 
 If you'd like to redeploy network without reconfiguration, to drop the ledger for example, just launch `start-network.yml` (don't forget inventory configuration).
 
-```ansible-playbook start-network.yml -i hosts_kafka.yml```
+```bash 
+ansible-playbook start-network.yml -i hosts_kafka.yml
+```
 
 #### How do I test deployed network?
 
@@ -214,7 +228,9 @@ All test data should specified in 'set_facts' task of `test.yml` and `test_bilat
 ```
 Launching test playbooks is like any other ansible playbooks:
 
-`ansible-playbook test.yml -i hosts_kafka.yml`
+```bash
+ansible-playbook test.yml -i hosts_kafka.yml
+```
 
 ### Maintenance scripts
 
