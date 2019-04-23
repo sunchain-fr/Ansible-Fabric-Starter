@@ -315,13 +315,13 @@
         raw: "{{ item }}"
         loop:
         - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {{ chaincode_common_name }} -l {{ chaincode_lang }}'"
-        - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {{ chaincode_common_name }} -l {{ chaincode_lang }}'"
+       # - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {{ chaincode_common_name }} -l {{ chaincode_lang }}'"
 
       - name: Install chaincode for additional cahnnels, if any
         raw: "{{ item }}"
         loop:
         - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
-        - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
+        #- "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
         when: "additional_channels is defined"
 
 #      - name: Updating channels anchor peers
@@ -359,9 +359,9 @@
       loop: "{{ new_channels }}"
       when: "org in item.particapants"
 
-    - raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
-      loop: "{{ new_channels }}"
-      when: "org in item.particapants"
+#    - raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
+#      loop: "{{ new_channels }}"
+#      when: "org in item.particapants"
 
     - name: Instantiating chaincode for other channels, if any
       raw: "docker-compose exec cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -c {{ chanicode_bilateral_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -C {{ item.name }} --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt'"
@@ -383,16 +383,16 @@
     - name: Joining common channel
       raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b common.block"'
 
-    - raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b common.block"'
+    #- raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b common.block"'
 
     - name: Joining other channels
       raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
       loop: "{{ additional_channels }}"
       when: "org in item.particapants"
 
-    - raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
-      loop: "{{ additional_channels }}"
-      when: "org in item.particapants"
+#    - raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
+#      loop: "{{ additional_channels }}"
+#      when: "org in item.particapants"
 
     - name: Changing ownership of channel block files
       raw: 'docker-compose exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'

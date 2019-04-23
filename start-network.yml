@@ -120,6 +120,14 @@
           line: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml down"
           create: yes
 
+      - name: Let orderer start
+        raw: "docker logs orderer{{ orderer_id | default() }}.{{ domain }}"
+        register: result
+        until: result.stdout.find("Starting Raft node") != -1
+        retries: 60
+        delay: 1
+        when: "'etcdraft' in orderer_type"
+
       when: "'orderer' in node_roles"
 
 
@@ -182,7 +190,7 @@
         raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel create -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ common_channel_name }} -f /etc/hyperledger/artifacts/channel/{{ common_channel_name }}.tx --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
 
       - name: Changing ownership of channel block files
-        raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
       - name: Joining common channel
         raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ common_channel_name }}.block"'
@@ -243,7 +251,7 @@
         #- raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ common_channel_name }}.block"'
 
         - name: Changing ownership of channel block files
-          raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
+          raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
 
       when: "'root_peer' not in node_roles and 'peer' in node_roles"
 
@@ -263,7 +271,7 @@
         when: "org in item.particapants[0]"
 
       - name: Changing ownership of channel block files
-        raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
       - name: Synchronize genrated block files (artifacts)
         synchronize: src="{{ fabric_artifacts }}/*.block" dest="./artifacts/" mode=pull recursive=yes
@@ -310,7 +318,7 @@
         when: "org in item.particapants[0] and chaincode_endorcement_policy_common == ''"
 
       - name: Changing ownership of channel block files
-        raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
       - name: Updating anchor peers
         raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'

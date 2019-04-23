@@ -18,7 +18,7 @@ all:
         particapants:
         - b
         - c
-    kafka_orderer: true  # Enable kafka orderer, we'll have 4 brokers and 3 zookeepers.
+    orderer_type: kafka  # Enable kafka orderer, we'll have 4 brokers and 3 zookeepers.
     orderer_count: 3 # Amount of orderers in network, assumed that it equals to amount of organization, so each org will have an own orderer copy
     kafka_replicas: 2 # Set kafka_replicas parameter
     kafka_replication_factor: 3 # Set kafka_replication_factor parameter (https://hyperledger-fabric.readthedocs.io/en/release-1.2/kafka.html)

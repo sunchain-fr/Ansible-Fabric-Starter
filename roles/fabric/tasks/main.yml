@@ -18,7 +18,7 @@
     name: "{{ item.image }}:{{ item.version }}"
     state: present
   loop: "{{ kafka_docker_images }}"
-  when: kafka_orderer
+  when: "'kafka' in orderer_type"
 
 - name: Pull hyperledger explorer images
   docker_image:

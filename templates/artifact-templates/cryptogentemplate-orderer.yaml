@@ -10,7 +10,7 @@ OrdererOrgs:
   # ---------------------------------------------------------------------------
   - Name: Orderer
     Domain: {{ domain }}
-{% if orderer_count is defined and kafka_orderer %}
+{% if orderer_count is defined %}
     Template:
       Count: {{ orderer_count }}
 {% endif %}

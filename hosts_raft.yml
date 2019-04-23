@@ -1,0 +1,65 @@
+---
+all:
+  hosts:
+    localhost: # localhost connection parameters, used for storing configuration while transferring it between nodes
+      ansible_connection: local
+  vars:
+    domain: example.com
+    additional_channels: # optional, common channels are created by default. Just comment it out, if you don't need additional channels.
+      - name: org0-org1 # channel name
+        particapants: # Organizations, should be included in channel
+          - org0
+          - org1
+      - name: org1-org2
+        particapants:
+          - org1
+          - org2
+    orderer_type: etcdraft  # Enable etcdraft orderer.
+    orderer_count: 4 # Amount of orderers in network, assumed that it equals to amount of organization, so each org will have an own orderer copy
+  children:
+    nodes:
+      hosts:
+        org0.example.com: # Describes which containers will run on this node
+          node_roles:
+            - root_orderer # This node will be used to generate crypto-config for other orderers
+            - orderer # This node will host an orderer-service
+            - peer # This node will host peers and api containers for organization
+            - root_peer # This node will be used to create channels and instantiate chaincode
+            - explorer # This node will serve hyperledger fabric explorer
+          org: org0 # Organization name
+          orderer_id: 0
+          ansible_host: 192.168.99.131 # Real ip address or domain name of the machine
+          ansible_user: support  # User with sudo access
+          #ansible_private_key_file: ~/path-to-private-key # Private key to identify ourselves
+          ansible_ssh_port: 22 # Specify ssh-port here, if case of it's not defaulted.
+        # Same structure for any other nodes
+        org1.example.com:
+          node_roles:
+            - orderer # This node will host an orderer-service
+            - peer # This node will host peers and api containers for organization
+          org: org1
+          orderer_id: 1 # ID of orderer-service which is running on this host
+          ansible_host: 192.168.99.128
+          ansible_user: support
+          #ansible_private_key_file: ~/path-to-private-key
+          ansible_ssh_port: 22
+        org2.example.com:
+          node_roles:
+            - orderer
+            - peer
+          org: org2
+          orderer_id: 2
+          ansible_host: 192.168.99.129
+          ansible_user: support
+          #ansible_private_key_file: ~/path-to-private-key
+          ansible_ssh_port: 22
+        org3.example.com: # This node will host only kafka-broker and peer.
+          node_roles:
+            - peer
+            - orderer
+          org: org3
+          orderer_id: 3
+          ansible_host: 192.168.99.130
+          ansible_user: support
+          #ansible_private_key_file: ~/path-to-private-key
+          ansible_ssh_port: 22

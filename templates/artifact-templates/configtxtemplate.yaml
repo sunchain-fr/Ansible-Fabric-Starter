@@ -240,11 +240,7 @@ Orderer: &OrdererDefaults
 
     # Orderer Type: The orderer implementation to start
     # Available types are "solo" and "kafka"
-{% if kafka_orderer %}
-    OrdererType: kafka
-{% else %}
     OrdererType: solo
-{% endif %}
     Addresses:
         - orderer{{ orderer_id | default() }}.{{ domain }}:7050
 
@@ -255,7 +251,7 @@ Orderer: &OrdererDefaults
     BatchSize:
 
         # Max Message Count: The maximum number of messages to permit in a batch
-        MaxMessageCount: 10
+        MaxMessageCount: 100
 
         # Absolute Max Bytes: The absolute maximum number of bytes allowed for
         # the serialized messages in a batch.
@@ -270,11 +266,6 @@ Orderer: &OrdererDefaults
         # Brokers: A list of Kafka brokers to which the orderer connects
         # NOTE: Use IP:port notation
         Brokers:
-{% for fabric_host in groups['nodes'] %}
-{% if 'kafka_broker' in hostvars[fabric_host].node_roles %}
-            - {{ hostvars[fabric_host].ansible_host }}:{{ kafka_broker_port }}
-{% endif %}
-{% endfor %}
 
     # Organizations is the list of orgs which are defined as participants on
     # the orderer side of the network
@@ -341,7 +332,7 @@ Channel: &ChannelDefaults
 ################################################################################
 Profiles:
 
-    OrdererGenesis:
+    OrdererGenesisSolo:
         <<: *ChannelDefaults
         Capabilities:
             <<: *ChannelCapabilities
@@ -359,6 +350,71 @@ Profiles:
                   - *{{ hostvars[fabric_host].org }}
 {% endif %}
 {% endfor %}
+{% if 'kafka' in orderer_type %}
+    OrdererGenesisKafka:
+        <<: *ChannelDefaults
+        Capabilities:
+            <<: *ChannelCapabilities
+        Orderer:
+            <<: *OrdererDefaults
+            OrdererType: kafka
+            Kafka:
+                Brokers:
+{% for fabric_host in groups['nodes'] %}
+{% if 'kafka_broker' in hostvars[fabric_host].node_roles %}
+                - {{ hostvars[fabric_host].ansible_host }}:{{ kafka_broker_port }}
+{% endif %}
+{% endfor %}
+            Organizations:
+                - *OrdererOrg
+            Capabilities:
+                <<: *OrdererCapabilities
+        Consortiums:
+            SampleConsortium:
+                Organizations:
+{% for fabric_host in groups['nodes'] %}
+{% if 'peer' in hostvars[fabric_host].node_roles %}
+                    - *{{ hostvars[fabric_host].org }}
+{% endif %}
+{% endfor %}
+{% endif %}
+{% if 'etcdraft' in orderer_type %}
+    OrdererGenesisEtcdRaft:
+        <<: *ChannelDefaults
+        Capabilities:
+            <<: *ChannelCapabilities
+        Orderer:
+            <<: *OrdererDefaults
+            OrdererType: etcdraft
+            EtcdRaft:
+                Consenters:
+{% for fabric_host in groups['nodes'] %}
+{% if 'orderer' in hostvars[fabric_host].node_roles %}
+                - Host: orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}
+                  Port: {{ orderer_port }}
+                  ClientTLSCert: crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}/tls/server.crt
+                  ServerTLSCert: crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}/tls/server.crt
+{% endif %}
+{% endfor %}
+            Addresses:
+{% for fabric_host in groups['nodes'] %}
+{% if 'orderer' in hostvars[fabric_host].node_roles %}
+                - orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ orderer_port }}
+{% endif %}
+{% endfor %}
+            Organizations:
+                - *OrdererOrg
+            Capabilities:
+                <<: *OrdererCapabilities
+        Consortiums:
+            SampleConsortium:
+                Organizations:
+{% for fabric_host in groups['nodes'] %}
+{% if 'peer' in hostvars[fabric_host].node_roles %}
+                    - *{{ hostvars[fabric_host].org }}
+{% endif %}
+{% endfor %}
+{% endif %}
     {{ common_channel_name }}:
         Consortium: SampleConsortium
         Application:

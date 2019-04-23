@@ -118,7 +118,6 @@ services:
 {% endif %}
 {% if 'peer' in hostvars[fabric_host].node_roles %}
       -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
-      -  peer1.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
 {% endif %}
 {% endif %}
 {% endfor %}

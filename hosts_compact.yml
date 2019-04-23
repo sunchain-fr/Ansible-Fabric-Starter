@@ -6,8 +6,7 @@ all:
       ansible_connection: local
   vars:
     domain: example.com
-    # Disable kafka orderer
-    kafka_orderer: false
+    orderer_type: solo
   children:
     nodes:
       hosts:

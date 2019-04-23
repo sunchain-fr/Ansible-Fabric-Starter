@@ -27,6 +27,10 @@
     raw: "docker volume rm $(docker volume ls -qf dangling=true)"
     ignore_errors: true
 
+  - name: Clean all chaincode images
+    raw: "docker image rm $(docker image ls | grep {{ domain }} | awk '{print $1};')"
+    ignore_errors: true
+
   - name: Findout UID
     raw: "id -u {{ ansible_user }}"
     register: ansible_uid
@@ -129,7 +133,16 @@
       raw: 'docker exec "cli.{{ domain }}" bash -c "cryptogen generate --config=cryptogen-{{ domain }}.yaml"'
 
     - name: Generating orderer genesis block with configtxgen
-      raw: 'docker exec "cli.{{ domain }}" configtxgen -profile OrdererGenesis -outputBlock ./channel/genesis.block'
+      raw: 'docker exec "cli.{{ domain }}" configtxgen -profile OrdererGenesisSolo -outputBlock ./channel/genesis.block'
+      when: "'solo' in orderer_type"
+
+    - name: Generating orderer genesis block with configtxgen
+      raw: 'docker exec "cli.{{ domain }}" configtxgen -profile OrdererGenesisKafka -outputBlock ./channel/genesis.block'
+      when: "'kafka' in orderer_type"
+
+    - name: Generating orderer genesis block with configtxgen
+      raw: 'docker exec "cli.{{ domain }}" configtxgen -profile OrdererGenesisEtcdRaft -outputBlock ./channel/genesis.block'
+      when: "'etcdraft' in orderer_type"
 
     - name: Changing artifacts file ownership
       raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'

@@ -4,9 +4,9 @@ Everything is running inside docker-containers, and managed by docker-compose.
 Assumed that 1 physical (or virtual) host will serve one organisation, so **only multi-host deployment is supported** by this tool.
  
 ## Quick overview:
-* Hyperledger Fabric v1.4
+* Hyperledger Fabric v1.4.1
 * TLS enabled on all configurations
-* kafka and solo orderers are supported
+* etcdraft, kafka and solo orderers are supported
 * CouchDB and LevelDB peer database supprted
 * Configurable amount of organisations
 * Configurable amount of channels
@@ -70,6 +70,10 @@ You can find three example-configurations:
 
    ![alt hosts_kafka](docs/hosts_kafka.png "hosts_kafka.yml")
 - **hosts_kafka.yml** - Kafka orderer, 3 organizations, each organization has own copy of orderer-service. 3 private channels between all organizations.
+   
+   
+   ![alt hosts_raft](docs/hosts_raft.png "hosts_raft.yml")
+- **hosts_raft.yml** - EtcdRaft orderer, 4 organizations, each organization has own copy of orderer-service. 2 private channels between first three organizations.
 
 If blockchain network architecture is pre-configured (or you may want to run default settings), 
 you just need to specify ip-address of each host in `ansible_host`, user with sudo access in `ansible_user`. 
@@ -96,7 +100,7 @@ Let's describe the most complicated example of `hosts_kafka.yml` configuration:
            particapants:
            - b
            - c
-       kafka_orderer: true  # Enable kafka orderer, we'll have 4 brokers and 3 zookeepers.
+       orderer_type: kafka  # Enable kafka orderer, we'll have 4 brokers and 3 zookeepers.
        orderer_count: 3 # Amount of orderers in network, assumed that it equals to amount of organization, so each org will have an own orderer copy
        kafka_replicas: 2 # Set kafka_replicas parameter
        kafka_replication_factor: 3 # Set kafka_replication_factor parameter (https://hyperledger-fabric.readthedocs.io/en/release-1.2/kafka.html)

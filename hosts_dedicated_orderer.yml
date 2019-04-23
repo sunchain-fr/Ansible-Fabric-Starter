@@ -19,8 +19,7 @@ all:
         particapants:
         - b
         - c
-    # Disable kafka orderer
-    kafka_orderer: false
+    orderer_type: solo
   children:
     nodes:
       hosts:
