@@ -173,6 +173,10 @@
         loop:
           - "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_common_name }} {% else %} {{ chaincode_common_name }} {% endif %} -l {{ chaincode_lang }}'"
           #- "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_common_name }} {% else %} {{ chaincode_common_name }} {% endif %} -l {{ chaincode_lang }}'"
+        retries: 10
+        delay: 1
+        register: result
+        until: result.rc == 0
 
       - name: Install chaincode for additional cahnnels, if any
         raw: "{{ item }}"

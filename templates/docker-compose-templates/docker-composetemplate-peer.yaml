@@ -39,6 +39,8 @@ services:
       - CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051
       - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.{{ org }}.{{ domain }}:7051
       - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.{{ org }}.{{ domain }}:7051
+      - CC_ENDORSEMENT_COMMON={{ chaincode_endorcement_policy_common }}
+      - CC_ENDORSEMENT_BILATERAL={{ chaincode_endorcement_policy_bilateral }}
     ports:
       - {{ peer0_port }}:7051
       - {{ event0_port }}:7053
