@@ -1,14 +1,4 @@
 ---
-#- hosts: localhost
-#  tasks:
-#  - name: Clean local artifacts folder
-#    file:
-#      path: artifacts
-#      state: "{{ item }}"
-#    loop:
-#      - "absent"
-#      - "directory"
-
 - hosts: nodes
   tasks:
   - name: Perfom check for 'newcomers' flag
@@ -89,17 +79,20 @@
         recursive: yes
       when: "'newcomer' in node_roles"
 
+    - name: Start cli container without crypto volumes
+      raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d 'cliNoCryptoVolume.{{ org }}.{{ domain }}'"
+
     - name: Generate crypto material with cryptogen
-      raw: "docker-compose exec 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'sleep 2 && cryptogen generate --config=cryptogen-{{ org }}.yaml'"
-
-    - name: Changing artifacts ownership
-      raw: "docker-compose exec 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
-
-    - name: Adding generated CA private keys filenames
-      raw: 'sed -i -e "s/CA_PRIVATE_KEY/$(basename `ls -t {{ fabric_artifacts }}/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/ca/*_sk`)/g" {{ docker_artifacts }}/docker-compose-{{ org }}.yaml'
+      raw: "docker exec 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'sleep 2 && cryptogen generate --config=cryptogen-{{ org }}.yaml'"
 
     - name: Generating orgConfig.json
-      raw: 'docker-compose --file  {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm "cliNoCryptoVolume.{{ org }}.{{ domain }}" bash -c "FABRIC_CFG_PATH=./ configtxgen -printOrg {{ org }}MSP > {{ org }}Config.json"'
+      raw: 'docker exec "cliNoCryptoVolume.{{ org }}.{{ domain }}" bash -c "FABRIC_CFG_PATH=./ configtxgen -printOrg {{ org }}MSP > {{ org }}Config.json"'
+
+    - name: Changing artifacts ownership
+      raw: "docker exec 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
+
+    - name: Rename generated private keys to server.key
+      shell: find {{ fabric_artifacts }}/crypto-config -iname "*_sk*" -exec bash -c 'mv $0 $(echo $0 | sed -e "s/[^/]*_sk/server.key/")' {} \;
 
     - name: Create all folders for rsync..
       file:
@@ -133,8 +126,12 @@
   - name: Configure needed channel updates for new orgs
     block:
 
+      - name: Start cli domain container
+        raw:  "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml up -d 'cli.{{ domain }}'"
+        when: "'root_orderer' in node_roles"
+
       - name: Updating crypto material with cryptogen
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml run --rm cli.{{ domain }} bash -c "cryptogen extend --config=cryptogen-{{ domain }}.yaml"'
+        raw: 'sleep 3 && docker exec cli.{{ domain }} bash -c "cryptogen extend --config=cryptogen-{{ domain }}.yaml"'
         when: "'root_orderer' in node_roles"
 
       - name: Modifying common channel
@@ -162,7 +159,7 @@
         when: "'root_peer' in node_roles"
 
       - name: Generating other channels config transactions, if any
-        raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml run --rm "cli.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputCreateChannelTx "./channel/{{ item.name }}.tx" -channelID "{{ item.name }}"'
+        raw: 'docker exec "cli.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputCreateChannelTx "./channel/{{ item.name }}.tx" -channelID "{{ item.name }}"'
         loop: "{{ new_channels }}"
         when: "new_channels is defined and 'root_orderer' in node_roles"
 
@@ -173,8 +170,12 @@
   tasks:
 
   - block:
+
+    - name: Start cli container
+      raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d 'cli.{{ org }}.{{ domain }}'"
+
     - name: Changing ownership of channel block files
-      raw: 'docker-compose exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
+      raw: "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts'"
 
     - name: Create all folders for rsync..
       file:
@@ -188,16 +189,16 @@
       loop: "{{ files_to_rsync_nodes_phase1 }}"
 
     - name: Sign common channel update by all orgs
-      raw: 'docker-compose exec cli.{{ org }}.{{ domain }} bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel signconfigtx -f /etc/hyperledger/artifacts/channel/config_{{ common_channel_name }}_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+      raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel signconfigtx -f /etc/hyperledger/artifacts/channel/config_{{ common_channel_name }}_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
       when: "'root_peer' not in node_roles"
 
     - name: Sign other channel update by appropriate orgs
-      raw: 'docker-compose exec cli.{{ org }}.{{ domain }} bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel signconfigtx -f /etc/hyperledger/artifacts/channel/config_{{ item.0.name }}_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+      raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel signconfigtx -f /etc/hyperledger/artifacts/channel/config_{{ item.0.name }}_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
       loop: "{{ additional_channels | product(new_orgs) | list }}"
       when: "additional_channels is defined and org in item.0.particapants and org not in item.0.particapants[0] and item.1 in item.0.particapants"
 
     - name: Changing ownership of channel block files
-      raw: 'docker-compose exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
+      raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
 
     - name: Synchronize genrated block files (artifacts)
       become: true
@@ -209,8 +210,12 @@
 - hosts: nodes
   tasks:
 
+  - name: Start cli domain container
+    raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml up -d 'cli.{{ domain }}'"
+    when: "'orderer' in node_roles"
+
   - name: Changing ownership of channel block files
-    raw: 'docker-compose exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
+    raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
     when: "'peer' in node_roles"
 
   - name: Synchronize genrated block files (artifacts)
@@ -220,7 +225,7 @@
     when: "'peer' in node_roles"
 
   - name: Updating testchainid channel with new config..
-    raw: 'docker start cli.{{ domain }} && sleep 3 && docker exec cli.{{ domain }} bash -c "peer channel update -f /etc/hyperledger/artifacts/channel/config_testchainid_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c testchainid --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+    raw: 'docker exec cli.{{ domain }} bash -c "peer channel update -f /etc/hyperledger/artifacts/channel/config_testchainid_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c testchainid --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
     when: "'root_orderer' in node_roles"
 
   - name: Updating common channel with new config..
@@ -266,16 +271,16 @@
   - name: Bootstrap new orgs
     block:
 
-#      - name: Generating anchor peer updates for common channels
-#        raw: 'docker-compose exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "{{ common_channel_name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ common_channel_name }}.tx -channelID "{{ common_channel_name }}" -asOrg {{ org }}MSP'
-#
-#      - name: Generating anchor peer updates for other channels, if defined
-#        raw: 'docker-compose exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ org }}.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ item.name }}.tx -channelID "{{ item.name }}" -asOrg {{ org }}MSP'
-#        loop: "{{ additional_channels }}"
-#        when: "additional_channels is defined and org in item.particapants"
+      - name: Generating anchor peer updates for common channels
+        raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cliNoCryptoVolume.{{ org }}.{{ domain }}" configtxgen -profile "{{ common_channel_name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ common_channel_name }}.tx -channelID "{{ common_channel_name }}" -asOrg {{ org }}MSP'
+
+      - name: Generating anchor peer updates for other channels, if defined
+        raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cliNoCryptoVolume.{{ org }}.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputAnchorPeersUpdate ./channel/{{ org }}MSPanchors-{{ item.name }}.tx -channelID "{{ item.name }}" -asOrg {{ org }}MSP'
+        loop: "{{ additional_channels }}"
+        when: "additional_channels is defined and org in item.particapants"
 
       - name: Changing artifacts ownership
-        raw: "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
+        raw: "docker exec 'cliNoCryptoVolume.{{ org }}.{{ domain }}' bash -c 'chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} .'"
 
       - name: Create all folders for rsync..
         file:
@@ -315,17 +320,12 @@
         raw: "{{ item }}"
         loop:
         - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {{ chaincode_common_name }} -l {{ chaincode_lang }}'"
-       # - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {{ chaincode_common_name }} -l {{ chaincode_lang }}'"
 
       - name: Install chaincode for additional cahnnels, if any
         raw: "{{ item }}"
         loop:
         - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
-        #- "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
         when: "additional_channels is defined"
-
-#      - name: Updating channels anchor peers
-#        raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c common -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ common_channel_name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
 
     when: "'peer' in node_roles and 'newcomer' in node_roles"
 
@@ -333,17 +333,12 @@
     block:
 
     - name: Creating other channels
-      raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel create -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+      raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel create -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
       loop: "{{ new_channels }}"
       when: "org in item.particapants[0]"
 
-#    - name: Updating anchor peers
-#      raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
-#      loop: "{{ additional_channels }}"
-#      when: "org in item.particapants"
-
     - name: Changing ownership of channel block files
-      raw: 'docker-compose exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+      raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
     - name: Synchronize genrated block files (artifacts)
       synchronize: src="{{ fabric_artifacts }}/*.block" dest="./artifacts/" mode=pull recursive=yes
@@ -355,21 +350,22 @@
       synchronize: src="artifacts" dest="{{ fabric_starter_workdir }}" recursive=yes
 
     - name: Joining other channels
-      raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
+      raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
       loop: "{{ new_channels }}"
       when: "org in item.particapants"
 
-#    - raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
-#      loop: "{{ new_channels }}"
-#      when: "org in item.particapants"
-
     - name: Instantiating chaincode for other channels, if any
-      raw: "docker-compose exec cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -c {{ chanicode_bilateral_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -C {{ item.name }} --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt'"
+      raw: "docker exec cli.{{ org }}.{{ domain }} bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode instantiate -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -c {{ chanicode_bilateral_init | to_json }} -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -C {{ item.name }} --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt'"
       loop: "{{ new_channels }}"
       when: "org in item.particapants[0]"
 
+    - name: Updating anchor peers
+      raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+      loop: "{{ additional_channels }}"
+      when: "org in item.particapants"
+
     - name: Changing ownership of channel block files
-      raw: 'docker-compose exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+      raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
     when: "new_channels is defined and 'peer' in node_roles"
 
@@ -381,20 +377,22 @@
       synchronize: src="artifacts" dest="{{ fabric_starter_workdir }}" recursive=yes
 
     - name: Joining common channel
-      raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b common.block"'
-
-    #- raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b common.block"'
+      raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b common.block"'
 
     - name: Joining other channels
-      raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
+      raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
       loop: "{{ additional_channels }}"
       when: "org in item.particapants"
 
-#    - raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
-#      loop: "{{ additional_channels }}"
-#      when: "org in item.particapants"
+    - name: Updating channels anchor peers
+      raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ common_channel_name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ common_channel_name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+
+    - name: Updating anchor peers for other channels
+      raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+      loop: "{{ additional_channels }}"
+      when: "org in item.particapants"
 
     - name: Changing ownership of channel block files
-      raw: 'docker-compose exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+      raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
     when: "'peer' in node_roles and 'newcomer' in node_roles"

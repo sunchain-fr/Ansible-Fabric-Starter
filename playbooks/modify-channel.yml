@@ -7,11 +7,11 @@
   raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "apt-get update && apt-get install jq"'
 
 - name: Fetching channel block
-  raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "peer channel fetch config ./channel/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ domain }} bash -c "peer channel fetch config ./channel/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
   when: "'testchainid' not in mod_channel"
 
 - name: Fetching testchainid channel block
-  raw: 'docker-compose exec cli.{{ domain }} bash -c "peer channel fetch config ./channel/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ domain }} bash -c "peer channel fetch config ./channel/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
   when: "'testchainid' in mod_channel"
 
 - name: Decoding channel block
