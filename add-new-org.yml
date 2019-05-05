@@ -127,12 +127,19 @@
     block:
 
       - name: Start cli domain container
-        raw:  "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml up -d 'cli.{{ domain }}'"
+        raw:  "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d 'cli.{{ domain }}'"
         when: "'root_orderer' in node_roles"
 
       - name: Updating crypto material with cryptogen
-        raw: 'sleep 3 && docker exec cli.{{ domain }} bash -c "cryptogen extend --config=cryptogen-{{ domain }}.yaml"'
+        raw: 'docker exec cli.{{ domain }} bash -c "cryptogen extend --config=cryptogen-{{ domain }}.yaml"'
         when: "'root_orderer' in node_roles"
+        retries: 10
+        delay: 2
+        register: result
+        until: result.rc == 0
+
+      - name: Rename generated private keys to server.key
+        shell: find {{ fabric_artifacts }}/crypto-config -iname "*_sk*" -exec bash -c 'mv $0 $(echo $0 | sed -e "s/[^/]*_sk/server.key/")' {} \;
 
       - name: Modifying common channel
         import_tasks: playbooks/modify-channel.yml
@@ -159,7 +166,7 @@
         when: "'root_peer' in node_roles"
 
       - name: Generating other channels config transactions, if any
-        raw: 'docker exec "cli.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputCreateChannelTx "./channel/{{ item.name }}.tx" -channelID "{{ item.name }}"'
+        raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts "cli.{{ domain }}" configtxgen -profile "{{ item.name }}" -outputCreateChannelTx "./channel/{{ item.name }}.tx" -channelID "{{ item.name }}"'
         loop: "{{ new_channels }}"
         when: "new_channels is defined and 'root_orderer' in node_roles"
 
@@ -225,7 +232,7 @@
     when: "'peer' in node_roles"
 
   - name: Updating testchainid channel with new config..
-    raw: 'docker exec cli.{{ domain }} bash -c "peer channel update -f /etc/hyperledger/artifacts/channel/config_testchainid_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c testchainid --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+    raw: 'docker-compose -f {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm cli.{{ domain }} bash -c "sleep 3 && peer channel update -f /etc/hyperledger/artifacts/channel/config_testchainid_new_envelope.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c testchainid --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
     when: "'root_orderer' in node_roles"
 
   - name: Updating common channel with new config..
@@ -297,8 +304,8 @@
       - name: Synchronize www-client folder
         synchronize: src="www-client" dest="{{ fabric_starter_workdir }}" recursive=yes
 
-    #      - name: Synchronize middleware folder
-    #        synchronize: src="middleware" dest="{{ fabric_starter_workdir }}" recursive=yes
+#      - name: Synchronize middleware folder
+#        synchronize: src="middleware" dest="{{ fabric_starter_workdir }}" recursive=yes
 
       - name: Start docker containers
         raw: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d 2>&1"
@@ -319,12 +326,12 @@
       - name: Install chaincode
         raw: "{{ item }}"
         loop:
-        - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {{ chaincode_common_name }} -l {{ chaincode_lang }}'"
+        - "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {{ chaincode_common_name }} -l {{ chaincode_lang }}'"
 
       - name: Install chaincode for additional cahnnels, if any
         raw: "{{ item }}"
         loop:
-        - "docker-compose exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
+        - "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {{ chaincode_bilateral_name }} -l {{ chaincode_lang }}'"
         when: "additional_channels is defined"
 
     when: "'peer' in node_roles and 'newcomer' in node_roles"
@@ -359,10 +366,10 @@
       loop: "{{ new_channels }}"
       when: "org in item.particapants[0]"
 
-    - name: Updating anchor peers
-      raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
-      loop: "{{ additional_channels }}"
-      when: "org in item.particapants"
+#    - name: Updating anchor peers
+#      raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+#      loop: "{{ additional_channels }}"
+#      when: "org in item.particapants"
 
     - name: Changing ownership of channel block files
       raw: 'docker exec "cli.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
@@ -385,7 +392,7 @@
       when: "org in item.particapants"
 
     - name: Updating channels anchor peers
-      raw: 'docker-compose exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ common_channel_name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ common_channel_name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+      raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ common_channel_name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ common_channel_name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
 
     - name: Updating anchor peers for other channels
       raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
