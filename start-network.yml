@@ -335,11 +335,6 @@
     - name: Deploy Hyperledger Explorer
       block:
 
-        - name: Capabilities check
-          fail:
-            msg: "Explorer can be launched on node with 'root_orderer' and 'root_peer' roles."
-          when: "'root_peer' not in node_roles and 'root_orderer' not in node_roles"
-
         - name: Template SDK network-config
           template:
             src: "{{ item.from }}"

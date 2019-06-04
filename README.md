@@ -142,6 +142,7 @@ Let's describe the most complicated example of `hosts_kafka.yml` configuration:
                - peer
                - zookeeper
                - kafka_broker
+               - explorer
              org: b
              orderer_id: 1
              zookeeper_id: 2
@@ -155,6 +156,7 @@ Let's describe the most complicated example of `hosts_kafka.yml` configuration:
                - peer
                - orderer
                - kafka_broker
+               - explorer
              org: c
              orderer_id: 2
              kafka_broker_id: 3
@@ -366,7 +368,7 @@ All possible node roles:
 * **zookeeper** - node will run a zookeeper instance for kafka-cluser (optional)
 * **root_peer** - node will be used to create all channels and instantiate chaincode for the whole network (one role per network)
 * **peer** - node will peer and api container for specified organization.
-* **explorer** - node will serve Hyperledger Blockchain explorer, served port and explorer version configurable in 'group_vars/all.yml'. Note, that only node with `root_peer` and `root_orderer` role can serve blockchain explorer.
+* **explorer** - node will serve Hyperledger Blockchain explorer, served port and explorer version configurable in 'group_vars/all.yml'.
 
 #### Known issues
 

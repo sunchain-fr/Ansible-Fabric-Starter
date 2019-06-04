@@ -18,7 +18,7 @@
     }
   },
   "channels": {
-    "common": {
+    "{{ common_channel_name }}": {
       "peers": {
         "peer0.{{ org }}.{{ domain }}": {}
       },
@@ -31,7 +31,24 @@
           }
         }
       }
-    }
+    }{% if additional_channels is defined %}{% for channel in additional_channels %}{% if org in channel.particapants %},
+  "{{ channel.name }}": {
+          "peers": {
+          {% for particapant in channel.particapants %}"peer0.{{ particapant }}.{{ domain }}":  {}{% if not loop.last %},{% endif %}{% endfor %}
+          },
+          "connection": {
+            "timeout": {
+              "peer": {
+                "endorser": "6000",
+                "eventHub": "6000",
+                "eventReg": "6000"
+              }
+            }
+          }
+  }
+{% endif %}
+{% endfor %}
+{% endif %}
   },
   "organizations": {
     "{{ org }}MSP": {

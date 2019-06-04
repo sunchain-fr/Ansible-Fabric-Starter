@@ -37,6 +37,7 @@ all:
           node_roles:
             - orderer # This node will host an orderer-service
             - peer # This node will host peers and api containers for organization
+            - explorer
           org: org1
           orderer_id: 1 # ID of orderer-service which is running on this host
           ansible_host: 192.168.99.128
