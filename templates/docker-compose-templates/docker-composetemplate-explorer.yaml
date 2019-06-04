@@ -25,10 +25,11 @@ services:
     - DATABASE_HOST=db
     - DATABASE_USERNAME=hppoc
     - DATABASE_PASSWD=password032
+    - DISCOVERY_AS_LOCALHOST=false
     volumes:
       - {{ fabric_starter_workdir }}/artifacts/crypto-config:/fabric/crypto-config:ro
       - explorer.{{ org }}.{{ domain }}:/tmp/crypto
-      - {{ fabric_starter_workdir }}/artifacts/explorer-config.json:/opt/explorer/app/platform/fabric/config.json:ro
+      - {{ fabric_starter_workdir }}/artifacts/explorer-config.json:/opt/explorer/app/platform/fabric/connection-profile/first-network.json:ro
     ports:
       - {{ hl_explorer_port }}:8080
     links:

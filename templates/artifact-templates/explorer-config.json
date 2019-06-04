@@ -1,109 +1,60 @@
 {
-  "network-configs": {
-    "network-1": {
-      "version": "1.0",
-      "clients": {
-        "client-1": {
-          "tlsEnable": true,
-          "organization": "{{ org }}",
-          "channel": "{{ common_channel_name }}",
-          "credentialStore": {
-            "path": "./tmp/crypto/credentialStore_{{ org }}/credential",
-            "cryptoStore": {
-              "path": "./tmp/crypto/credentialStore_{{ org }}/crypto"
-            }
-          }
-        }
-      },
-      "channels": {
-        "{{ common_channel_name }}": {
-          "peers": {
-            "peer0.{{ org }}.{{ domain }}": {}
-          },
-          "connection": {
-            "timeout": {
-              "peer": {
-                "endorser": "6000",
-                "eventHub": "6000",
-                "eventReg": "6000"
-              }
-            }
-          }
-        }
-{% if additional_channels is defined %}
-{% for channel in additional_channels %}
-{% for particapant in channel.particapants %}
-{% if org in particapant %},
-        "{{ channel.name }}": {
-          "peers": {
-            "peer0.{{ particapant }}.{{ domain }}": {}
-          },
-          "connection": {
-            "timeout": {
-              "peer": {
-                "endorser": "6000",
-                "eventHub": "6000",
-                "eventReg": "6000"
-              }
-            }
-          }
-        }
-{% endif %}
-{% endfor %}
-{% endfor %}
-{% endif %}
-      },
-      "organizations": {
-{% for fabric_host in groups['nodes'] %}
-{% if 'peer' in hostvars[fabric_host].node_roles and org in hostvars[fabric_host].org %}
-        "{{ hostvars[fabric_host].org }}": {
-          "mspid": "{{ hostvars[fabric_host].org }}MSP",
-          "fullpath": false,
-          "adminPrivateKey": {
-            "path": "/fabric/crypto-config/peerOrganizations/{{ hostvars[fabric_host].org }}.{{ domain }}/users/Admin@{{ hostvars[fabric_host].org }}.{{ domain }}/msp/keystore"
-          },
-          "signedCert": {
-            "path": "/fabric/crypto-config/peerOrganizations/{{ hostvars[fabric_host].org }}.{{ domain }}/users/Admin@{{ hostvars[fabric_host].org }}.{{ domain }}/msp/signcerts"
-          }
+  "name": "first-network",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "client": {
+    "tlsEnable": true,
+    "adminUser": "{{ hl_explorer_username }}",
+    "adminPassword": "{{ hl_explorer_password }}",
+    "enableAuthentication": false,
+    "organization": "{{ org }}",
+    "connection": {
+      "timeout": {
+        "peer": {
+          "endorser": "300"
         },
-{% endif %}
-{% endfor %}
-        "OrdererMSP": {
-          "mspid": "OrdererMSP",
-          "adminPrivateKey": {
-            "path": "/fabric/crypto-config/ordererOrganizations/{{ domain }}/users/Admin@{{ domain }}/msp/keystore"
+        "orderer": "300"
+      }
+    }
+  },
+  "channels": {
+    "common": {
+      "peers": {
+        "peer0.{{ org }}.{{ domain }}": {}
+      },
+      "connection": {
+        "timeout": {
+          "peer": {
+            "endorser": "6000",
+            "eventHub": "6000",
+            "eventReg": "6000"
           }
         }
-      },
-      "peers": {
-{% for fabric_host in groups['nodes'] %}
-{% if 'peer' in hostvars[fabric_host].node_roles %}
-        "peer0.{{ hostvars[fabric_host].org }}.{{ domain }}": {
-          "url": "grpcs://peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ peer0_port }}"{% if org in hostvars[fabric_host].org %},
-          "tlsCACerts": {
-            "path": "/fabric/crypto-config/peerOrganizations/{{ hostvars[fabric_host].org }}.{{ domain }}/peers/peer0.{{ hostvars[fabric_host].org }}.{{ domain }}/tls/ca.crt"
-          },
-
-          "eventUrl": "grpcs://peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ event0_port }}",
-          "grpcOptions": {
-            "ssl-target-name-override": "peer0.{{ hostvars[fabric_host].org }}.{{ domain }}"
-          }{% endif %}
-        }{% if not loop.last %},{% endif %}
-{% endif %}
-{% endfor %}
-      },
-      "orderers": {
-{% for fabric_host in groups['nodes'] %}
-{% if 'orderer' in hostvars[fabric_host].node_roles %}
-        "orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}": {
-          "url": "grpcs://orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ orderer_port }}"
-        }{% if not loop.last %},{% endif %}
-{% endif %}
-{% endfor %}
       }
-    },
-    "network-2": {}
+    }
   },
-  "configtxgenToolPath": "/fabric-path/fabric/bin",
-  "license": "Apache-2.0"
+  "organizations": {
+    "{{ org }}MSP": {
+      "mspid": "{{ org }}MSP",
+      "fullpath": true,
+      "adminPrivateKey": {
+        "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/users/Admin@{{ org }}.{{ domain }}/msp/keystore/server.key"
+      },
+      "signedCert": {
+        "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/users/Admin@{{ org }}.{{ domain }}/msp/signcerts/Admin@{{ org }}.{{ domain }}-cert.pem"
+      }
+    }
+  },
+  "peers": {
+    "peer0.{{ org }}.{{ domain }}": {
+      "tlsCACerts": {
+        "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/tls/ca.crt"
+      },
+      "url": "grpcs://peer0.{{ org }}.{{ domain }}:7051",
+      "eventUrl": "grpcs://peer0.{{ org }}.{{ domain }}:7053",
+      "grpcOptions": {
+        "ssl-target-name-override": "peer0.{{ org }}.{{ domain }}"
+      }
+    }
+  }
 }

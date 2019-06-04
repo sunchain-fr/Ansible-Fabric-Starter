@@ -232,6 +232,11 @@ Launching test playbooks is like any other ansible playbooks:
 ansible-playbook test.yml -i hosts_kafka.yml
 ```
 
+#### How to access blockchain explorer?
+
+1) Open `8080` port of instance with explorer role.
+2) Login with credentials specified in `group_vars/all.yml`, `admin`/`adminpw` by default.
+
 ### Maintenance scripts
 
 Ansible-fabric-starter will create scripts for starting and stopping each node, because docker containers configured in a way, to start network at system start up. (`restart_ploicy: always`)
