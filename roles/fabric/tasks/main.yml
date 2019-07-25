@@ -11,12 +11,14 @@
   docker_image:
     name: "{{ item.image }}:{{ item.version }}"
     state: present
+    source: pull
   loop: "{{ fabric_docker_images }}"
 
 - name: Pull kafka images
   docker_image:
     name: "{{ item.image }}:{{ item.version }}"
     state: present
+    source: pull
   loop: "{{ kafka_docker_images }}"
   when: "'kafka' in orderer_type"
 
@@ -24,5 +26,7 @@
   docker_image:
     name: "{{ item.image }}:{{ item.version }}"
     state: present
+    source: pull
   loop: "{{ explorer_docker_images }}"
   when: "'explorer' in node_roles"
+
