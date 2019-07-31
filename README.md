@@ -34,7 +34,7 @@ Provisioned nodes by ansible should have:
 
 * **7050** - Hyperledger fabric orderer port
 * **7054** - Hyperledger fabric CA port
-* **7051** - Hyeprledger fabric peer port
+* **7051** - Hyperledger fabric peer port
 * **7053** - Hyperledger fabric peer event port
 * **22** - ssh, or any other port number, needed for inital ansible deployment only
 
