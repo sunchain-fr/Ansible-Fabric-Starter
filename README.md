@@ -212,6 +212,14 @@ If you'd like to redeploy network without reconfiguration, to drop the ledger fo
 ansible-playbook start-network.yml -i hosts_kafka.yml
 ```
 
+#### How to perform chaincode upgrade?
+
+1) Put new chaincode sources in `templates/chincode`
+2) Update `chaincode_version` in `group_vars/all.yml`
+3) Execute chaincode-upgrade.yml playbook like `ansible-playbook chaincode-upgrade.yml -i <your inventory file>`
+
+Playbook will perform chaincode upgrade when `chaincode_version` you specified differs from installed chaincode version.
+
 #### How do I test deployed network?
 
 After successful deployments you can use testing scripts, which will invoke chaincode on peers via cli containers.

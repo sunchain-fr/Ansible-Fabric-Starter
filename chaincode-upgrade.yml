@@ -1,0 +1,102 @@
+---
+- hosts: nodes
+  tasks:
+
+  - name: Chaincode upgrate is proceeding..
+    block:
+
+    - name: Transfer new chaincode
+      synchronize:
+        src: "templates/chaincode"
+        dest: "{{ fabric_starter_workdir }}"
+        recursive: yes
+        use_ssh_args: yes
+
+    - name: Start CLI admin tool container (and build it if needed)
+      raw: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d 2>&1"
+
+    - name: Make sure cli container started
+      raw: "docker start cli.{{ org }}.{{ domain }}"
+
+    - name: Obtain current chaincode version
+      raw: "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'peer chaincode list -C {{ common_channel_name }} --instantiated'"
+      register: common_chaincode
+
+    - name: Perform chaincode upgrade
+      block:
+
+      - name: Install chaincode
+        raw: "{{ item }}"
+        loop:
+          - "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_common_name }} {% else %} {{ chaincode_common_name }} {% endif %} -l {{ chaincode_lang }}'"
+          #- "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_common_name }} {% else %} {{ chaincode_common_name }} {% endif %} -l {{ chaincode_lang }}'"
+        retries: 10
+        delay: 1
+        register: result
+        until: result.rc == 0
+
+      - name: Install chaincode for additional cahnnels, if any
+        raw: "{{ item }}"
+        loop:
+          - "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_bilateral_name }} {% else %} {{ chaincode_bilateral_name }} {% endif %} -l {{ chaincode_lang }}'"
+          #- "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_bilateral_name }} {% else %} {{ chaincode_bilateral_name }} {% endif %} -l {{ chaincode_lang }}'"
+        when: "additional_channels is defined"
+        retries: 10
+        delay: 1
+        register: result
+        until: result.rc == 0
+
+      - name: Upgrading chaincode for common channel with endorsement policy
+        raw: "docker exec cli.{{ org }}.{{ domain }} bash -c \
+            'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && \
+            peer chaincode upgrade -n {{ chaincode_common_name }} \
+            -P \"$CC_ENDORSEMENT_COMMON\" -l {{ chaincode_lang }} \
+            -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} \
+            -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 \
+            -C {{ common_channel_name }} \
+            --tls true \
+            --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt \
+            {{ collections_config_param }} {{ collections_config_path }}'"
+        when: "chaincode_endorcement_policy_common != '' and 'root_peer' in node_roles"
+
+      - name: Upgrading chaincode for common channel
+        raw: "docker exec cli.{{ org }}.{{ domain }} bash -c \
+          'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && \
+          peer chaincode upgrade -n {{ chaincode_common_name }} \
+          -l {{ chaincode_lang }} \
+          -v {{ chaincode_version }} \
+          -c {{ chanicode_common_init | to_json }} \
+          -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} \
+          -C {{ common_channel_name }} \
+          --tls \
+          --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt \
+          {{ collections_config_param }} {{ collections_config_path }}'"
+        when: "chaincode_endorcement_policy_common == '' and 'root_peer' in node_roles"
+
+      - name: Upgrading chaincode for other channels with ensorsement policy, if any
+        raw: "docker exec cli.{{ org }}.{{ domain }} bash -c \
+        'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && \
+        peer chaincode upgrade -n {{ chaincode_bilateral_name }} \
+        -P \"$CC_ENDORSEMENT_BILATERAL\" \
+        -v {{ chaincode_version }} \
+        -c {{ chanicode_bilateral_init | to_json }} \
+        -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ item.name }} --tls \
+        --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt\
+        {{ collections_config_param }} {{ collections_config_path }}'"
+        loop: "{{ additional_channels }}"
+        when: "org in item.particapants[0] and chaincode_endorcement_policy_common != '' and additional_channels is defined"
+
+      - name: Upgrading chaincode for other channels, if any
+        raw: "docker exec cli.{{ org }}.{{ domain }} bash -c \
+        'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && \
+        peer chaincode upgrade -n {{ chaincode_bilateral_name }} \
+        -v {{ chaincode_version }} \
+        -c {{ chanicode_bilateral_init | to_json }} \
+        -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ item.name }} --tls \
+        --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt\
+        {{ collections_config_param }} {{ collections_config_path }}'"
+        loop: "{{ additional_channels }}"
+        when: "org in item.particapants[0] and chaincode_endorcement_policy_common == '' and additional_channels is defined"
+
+      when: chaincode_version not in common_chaincode.stdout
+    when: "'peer' in node_roles"
