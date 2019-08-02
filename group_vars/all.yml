@@ -26,7 +26,7 @@ fabric_rest_version: "latest"
 node_version: "8-alpine"
 
 # Hyperledger explorer configs
-hl_explorer_version: 0.3.9.3
+hl_explorer_version: 0.3.9.4
 hl_explorer_port: 8080
 hl_explorer_username: "admin"
 hl_explorer_password: "adminpw"
