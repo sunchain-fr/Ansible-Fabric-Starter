@@ -48,6 +48,7 @@ all:
           node_roles:
             - orderer
             - peer
+            - explorer
           org: org2
           orderer_id: 2
           ansible_host: 192.168.99.129
@@ -58,6 +59,7 @@ all:
           node_roles:
             - peer
             - orderer
+            - explorer
           org: org3
           orderer_id: 3
           ansible_host: 192.168.99.130

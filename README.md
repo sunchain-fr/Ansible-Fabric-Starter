@@ -4,7 +4,7 @@ Everything is running inside docker-containers, and managed by docker-compose.
 Assumed that 1 physical (or virtual) host will serve one organisation, so **only multi-host deployment is supported** by this tool.
  
 ## Quick overview:
-* Hyperledger Fabric v1.4.1
+* Hyperledger Fabric v1.4.2
 * TLS enabled on all configurations
 * etcdraft, kafka and solo orderers are supported
 * CouchDB and LevelDB peer database supprted
@@ -215,8 +215,8 @@ ansible-playbook start-network.yml -i hosts_kafka.yml
 #### How to perform chaincode upgrade?
 
 1) Put new chaincode sources in `templates/chincode`
-2) Update `chaincode_version` in `group_vars/all.yml`
-3) Execute chaincode-upgrade.yml playbook like `ansible-playbook chaincode-upgrade.yml -i <your inventory file>`
+2) Update `chaincode_version` in `group_vars/all.yml` or pass as env var via '-e' ansible paramter
+3) Execute chaincode-upgrade.yml playbook like `ansible-playbook chaincode-upgrade.yml -i <your inventory file> '-e chaincode_version=2.0'`
 
 Playbook will perform chaincode upgrade when `chaincode_version` you specified differs from installed chaincode version.
 
@@ -363,6 +363,15 @@ Modify your inventory file in a following way: __(Example configuration can be f
 5. Define all new organizations with `peer`, `orderer` and a `newcomer` flags.
 6. Install all dependencies on the new machione: `ansible-playbook install-dependencies.yml -i hosts_new_org.yml`
 7. Run deployment on testing environment with `ansible-playbook add-new-org.yml -i hosts_new_org.yml`
+
+#### **chaincode-upgrade.yml** 
+
+Playbook, to perform chaincode upgrade on previously launched network via Ansible-Fabric-Starter.
+
+1. Transfers new chaincode sources to each of the nodes;
+2. Spins up cli containers;
+3. Checks, if new chaincode version != old chaincode version;
+4. Performs chaincode upgrade.
 
 ### *node_roles* hostvar description
 
