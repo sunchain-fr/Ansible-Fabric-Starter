@@ -395,4 +395,4 @@ All possible node roles:
 
 Feel free to ask any questions at:
 
-* **E-mail**: `altoros-bc-lab@altoros.com` or `ebc@altoros.com`
+* **E-mail**: `ebc@altoros.com`

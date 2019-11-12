@@ -184,7 +184,7 @@
     when: "'orderer' in node_roles and 'root_orderer' not in node_roles"
 
   - name: Rename generated private keys to server.key
-    shell: find {{ fabric_artifacts }}/crypto-config -iname "*_sk*" -exec bash -c 'mv $0 $(echo $0 | sed -e "s/[^/]*_sk/server.key/")' {} \;
+    shell: find {{ fabric_artifacts }}/crypto-config -iname "*_sk*" -exec bash -c 'cp $0 $(echo $0 | sed -e "s/[^/]*_sk/server.key/")' {} \;
     when: "'peer' in node_roles or 'orderer' in node_roles"
 
   - name: Generate anchor peers updates
