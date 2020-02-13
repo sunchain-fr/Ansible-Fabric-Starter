@@ -18,10 +18,10 @@ use_couchdb: 'no'
 couchdb_port: 5984
 
 # Hyperledger framework version
-fabric_version: "1.4.2"
-fabric_pack: "amd64-{{ fabric_version }}"
+fabric_version: "1.4.4"
+fabric_pack: "{{ fabric_version }}"
 # fabric_thirdparty_version needed for couchdb, kafka etc..
-fabric_thirdparty_version: "0.4.14"
+fabric_thirdparty_version: "0.4.15"
 fabric_rest_version: "latest"
 node_version: "8-alpine"
 
@@ -32,37 +32,13 @@ hl_explorer_username: "admin"
 hl_explorer_password: "adminpw"
 
 # Default HL fabric ports
-
-zookeper_ports:
-  - '2181'
-  - '2888'
-  - '3888'
-kafka_broker_port: 9092
-
 orderer_port: 7050
-
 api_port: 4000
 ca_port: 7054
 peer0_port: 7051
-event0_port: 7053
-peer1_port: 7056
-event1_port: 7058
-common_channel_name: "common"
 
 #Chaincode configs
 chaincode: "{{ fabric_starter_workdir }}/chaincode"
-chaincode_lang: "golang"
-chaincode_version: "1.0"
-chaincode_common_name: "reference"
-chaincode_bilateral_name: "relationship"
-chanicode_common_init: '{"Args":["init","a","100","b","100"]}'
-chanicode_bilateral_init: '{"Args":["init","a","100","b","100"]}'
-
-# Define endorsement policy only in case there is a need
-chaincode_endorcement_policy_common: ""
-chaincode_endorcement_policy_bilateral: ""
-#chaincode_endorcement_policy_common: "OR({% for fabric_host in groups['nodes'] %}{% if ('peer' in hostvars[fabric_host].node_roles) %}{% raw %}'{% endraw %}{{ hostvars[fabric_host].org }}{% raw %}MSP.member'{% endraw %}{% if not loop.last %},{% endif %}{% endif %}{% endfor %})"
-#chaincode_endorcement_policy_bilateral: "OR({% for fabric_host in groups['nodes'] %}{% if 'root_peer' in hostvars[fabric_host].node_roles %}{% raw %}'{% endraw %}{{ hostvars[fabric_host].org }}{% raw %}MSP.member'{% endraw %}{% endif %}{% endfor %})"
 
 # Define private collections configuration
 collections_config_param: ""
@@ -104,25 +80,25 @@ peer_templates:
 
 orderer_templates:
   - from: "docker-compose-templates/docker-composetemplate-orderer.yaml"
-    to: "{{ docker_artifacts }}/docker-compose-{{ domain }}.yaml"
+    to: "{{ docker_artifacts }}/docker-compose-{{ global_domain }}.yaml"
   - from: "artifact-templates/cryptogentemplate-orderer.yaml"
-    to: "{{ fabric_artifacts }}/cryptogen-{{ domain }}.yaml"
+    to: "{{ fabric_artifacts }}/cryptogen-{{ global_domain }}.yaml"
 
 files_to_rsync_orderer:
   - from: "{{ org }}Config.json"
     to: ""
-  - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/msp"
-    to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}"
-  - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/tls/ca.crt"
-    to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/tls"
-  - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/msp/tlscacerts/tlsca.{{ org }}.{{ domain }}-cert.pem"
-    to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/msp/tlscacerts"
-#  - from: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer1.{{ org }}.{{ domain }}/tls/ca.crt"
-#    to: "crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer1.{{ org }}.{{ domain }}/tls"
+  - from: "crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/msp"
+    to: "crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}"
+  - from: "crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/peers/peer0.{{ org }}.{{ global_domain }}/tls/ca.crt"
+    to: "crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/peers/peer0.{{ org }}.{{ global_domain }}/tls"
+  - from: "crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/peers/peer0.{{ org }}.{{ global_domain }}/msp/tlscacerts/tlsca.{{ org }}.{{ global_domain }}-cert.pem"
+    to: "crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/peers/peer0.{{ org }}.{{ global_domain }}/msp/tlscacerts"
+#  - from: "crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/peers/peer1.{{ org }}.{{ global_domain }}/tls/ca.crt"
+#    to: "crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/peers/peer1.{{ org }}.{{ global_domain }}/tls"
 
 files_to_rsync_nodes_phase1:
-  - from: "crypto-config/ordererOrganizations/{{ domain }}/orderers"
-    to: "crypto-config/ordererOrganizations/{{ domain }}/"
+  - from: "crypto-config/ordererOrganizations/{{ global_domain }}/orderers"
+    to: "crypto-config/ordererOrganizations/{{ global_domain }}/"
   - from: "channel"
     to: ""
 files_to_rsync_nodes_phase2:
