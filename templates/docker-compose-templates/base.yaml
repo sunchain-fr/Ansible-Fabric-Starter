@@ -28,7 +28,7 @@ services:
       - CORE_PEER_TLS_ROOTCERT_FILE=/etc/hyperledger/crypto/peer/tls/ca.crt
 {% if use_couchdb == 'yes' %}
       - CORE_LEDGER_STATE_STATEDATABASE=CouchDB
-      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.{{ org }}.{{ domain }}:{{ couchdb_port }}
+      - CORE_LEDGER_STATE_COUCHDBCONFIG_COUCHDBADDRESS=couchdb.{{ org }}.{{ global_domain }}:{{ couchdb_port }}
 {% endif %}
     working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
     command: peer node start
@@ -52,7 +52,7 @@ services:
       - /var/run/:/host/var/run/
       - {{ fabric_starter_workdir }}/artifacts:/etc/hyperledger/artifacts
       - {{ fabric_starter_workdir }}/chaincode:/opt/chaincode
-      - {{ fabric_starter_workdir }}/chaincode/{{ chaincode_lang }}:/opt/gopath/src
+      - {{ fabric_starter_workdir }}/chaincode/{{ global_chaincode_lang }}:/opt/gopath/src
     working_dir: /etc/hyperledger/artifacts
 
   api-base:
@@ -69,15 +69,3 @@ services:
     image: nginx
     volumes:
       - {{ fabric_starter_workdir }}/www/artifacts:/usr/share/nginx/html
-
-  zookeeper-base:
-    image: hyperledger/fabric-zookeeper:{{ fabric_thirdparty_version }}
-    restart: {{ docker_restart_policy }}
-
-  kafka-base:
-    image: hyperledger/fabric-kafka:{{ fabric_thirdparty_version }}
-    restart: {{ docker_restart_policy }}
-    environment:
-      - KAFKA_MESSAGE_MAX_BYTES=103809024 # 99 * 1024 * 1024 B
-      - KAFKA_REPLICA_FETCH_MAX_BYTES=103809024 # 99 * 1024 * 1024 B
-      - KAFKA_UNCLEAN_LEADER_ELECTION_ENABLE=false

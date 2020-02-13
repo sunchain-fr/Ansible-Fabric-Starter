@@ -1,11 +1,11 @@
 version: '2'
 volumes:
-  explorer-db.{{ org }}.{{ domain }}:
-  explorer.{{ org }}.{{ domain }}:
+  explorer-db.{{ org }}.{{ global_domain }}:
+  explorer.{{ org }}.{{ global_domain }}:
 services:
-  explorer-db.{{ org }}.{{ domain }}:
+  explorer-db.{{ org }}.{{ global_domain }}:
     image: hyperledger/explorer-db:{{ hl_explorer_version }}
-    container_name: explorer-db.{{ org }}.{{ domain }}
+    container_name: explorer-db.{{ org }}.{{ global_domain }}
     restart: {{ docker_restart_policy }}
     environment:
     # hyperledger explorer configs (used in migration scripts)
@@ -15,11 +15,11 @@ services:
     # postgresql configs:
     - POSTGRES_USER=root
     volumes:
-      - explorer-db.{{ org }}.{{ domain }}:/var/lib/postgresql/data
+      - explorer-db.{{ org }}.{{ global_domain }}:/var/lib/postgresql/data
 
-  explorer.{{ org }}.{{ domain }}:
+  explorer.{{ org }}.{{ global_domain }}:
     image: hyperledger/explorer:{{ hl_explorer_version }}
-    container_name: explorer.{{ org }}.{{ domain }}
+    container_name: explorer.{{ org }}.{{ global_domain }}
     restart: {{ docker_restart_policy }}
     environment:
     - DATABASE_HOST=db
@@ -28,22 +28,22 @@ services:
     - DISCOVERY_AS_LOCALHOST=false
     volumes:
       - {{ fabric_starter_workdir }}/artifacts/crypto-config:/fabric/crypto-config:ro
-      - explorer.{{ org }}.{{ domain }}:/tmp/crypto
+      - explorer.{{ org }}.{{ global_domain }}:/tmp/crypto
       - {{ fabric_starter_workdir }}/artifacts/explorer-config.json:/opt/explorer/app/platform/fabric/connection-profile/first-network.json:ro
     ports:
       - {{ hl_explorer_port }}:8080
     links:
-      - explorer-db.{{ org }}.{{ domain }}:db
+      - explorer-db.{{ org }}.{{ global_domain }}:db
     depends_on:
-      - explorer-db.{{ org }}.{{ domain }}
+      - explorer-db.{{ org }}.{{ global_domain }}
     extra_hosts:
 {% for fabric_host in groups['nodes'] %}
 {% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
 {% if 'orderer' in hostvars[fabric_host].node_roles %}
-      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+      -  orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ global_domain }}:{{ hostvars[fabric_host].ansible_host }}
 {% endif %}
 {% if 'peer' in hostvars[fabric_host].node_roles %}
-      -  peer0.{{ hostvars[fabric_host].org }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+      -  peer0.{{ hostvars[fabric_host].org }}.{{ global_domain }}:{{ hostvars[fabric_host].ansible_host }}
 {% endif %}
 {% endif %}
 {% endfor %}

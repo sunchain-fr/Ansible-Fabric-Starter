@@ -9,7 +9,7 @@ OrdererOrgs:
   # Orderer
   # ---------------------------------------------------------------------------
   - Name: Orderer
-    Domain: {{ domain }}
+    Domain: {{ global_domain }}
 {% if orderer_count is defined %}
     Template:
       Count: {{ orderer_count }}

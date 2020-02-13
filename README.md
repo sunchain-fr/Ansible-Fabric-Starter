@@ -4,15 +4,25 @@ Everything is running inside docker-containers, and managed by docker-compose.
 Assumed that 1 physical (or virtual) host will serve one organisation, so **only multi-host deployment is supported** by this tool.
  
 ## Quick overview:
-* Hyperledger Fabric v1.4.2
+* Hyperledger Fabric v1.4.4
 * TLS enabled on all configurations
-* etcdraft, kafka and solo orderers are supported
+* etcdraft orderer
 * CouchDB and LevelDB peer database supprted
 * Configurable amount of organisations
 * Configurable amount of channels
-* 1 chaincode for common channel, and 1 other chaincode for everything else
+* 1 chaincode per channel
 * Build-in hyperledger fabric explorer
 * Build-in Altoros RestAPI
+
+## Changelog:
+
+From previous version, based on the use on Hyperledger Fabric v1.4.2:
+
+* Hyperledger Fabric updated to version 1.4.4, and fabric-tools updated to 0.4.15;
+* Dropped support of solo and kafka ordering services;
+* Changed the way of configuring channels and installing chaincode (now, there are no pre-configured common channel, please see inventory file updates).
+* Deployment of hyperledger explorer moved to separated playbook, and not included automatically
+
 
 ## Technical Requirements:
 Your machine should have:
@@ -26,8 +36,6 @@ Provisioned nodes by ansible should have:
 * python
 * sudo access
 
-**At least 2GB of RAM if you are using kafka-orderer.**
-
 ## Ports, used by default, you probably want to whitelist them in your firewall.
 
 ### Ports, needed for blockchain instances to communicate with each other:
@@ -35,15 +43,7 @@ Provisioned nodes by ansible should have:
 * **7050** - Hyperledger fabric orderer port
 * **7054** - Hyperledger fabric CA port
 * **7051** - Hyperledger fabric peer port
-* **7053** - Hyperledger fabric peer event port
 * **22** - ssh, or any other port number, needed for inital ansible deployment only
-
-In case of kafka-orderer:
-
-* **9092** - Kafka broker port
-* **2181** - Kafka zookeper port
-* **2888** - Kafka zookeper port
-* **3888** - Kafka zookeper port
 
 ### Ports, you may want (or may not) open to the internet:
 
@@ -68,10 +68,6 @@ You can find three example-configurations:
 - **hosts_dedicated_orderer.yml** - Solo orderer, 3 organizations, orderer-service is hosted on separated node. 3 private channels between all organizations.
 
 
-   ![alt hosts_kafka](docs/hosts_kafka.png "hosts_kafka.yml")
-- **hosts_kafka.yml** - Kafka orderer, 3 organizations, each organization has own copy of orderer-service. 3 private channels between all organizations.
-   
-   
    ![alt hosts_raft](docs/hosts_raft.png "hosts_raft.yml")
 - **hosts_raft.yml** - EtcdRaft orderer, 4 organizations, each organization has own copy of orderer-service. 2 private channels between first three organizations.
 
@@ -79,91 +75,89 @@ If blockchain network architecture is pre-configured (or you may want to run def
 you just need to specify ip-address of each host in `ansible_host`, user with sudo access in `ansible_user`. 
 `domain` and machine domain-name (e.g. `one.example.com`) is mainly required for docker network, so you can set values you need.
 
-Let's describe the most complicated example of `hosts_kafka.yml` configuration:
+Let's describe the `hosts_raft.yml` configuration:
 ```yaml
-   all:
-     hosts:
-       localhost: # localhost connection parameters, used for storing configuration while transferring it between nodes
-         ansible_connection: local
-     vars:
-       domain: example.com
-       additional_channels: # optional, common channels are created by default. Just comment it out, if you don't need additional channels.
-         - name: a-b # channel name
-           particapants: # Organizations, should be included in channel
-           - a
-           - b
-         - name: a-c
-           particapants:
-           - a
-           - c
-         - name: b-c
-           particapants:
-           - b
-           - c
-       orderer_type: kafka  # Enable kafka orderer, we'll have 4 brokers and 3 zookeepers.
-       orderer_count: 3 # Amount of orderers in network, assumed that it equals to amount of organization, so each org will have an own orderer copy
-       kafka_replicas: 2 # Set kafka_replicas parameter
-       kafka_replication_factor: 3 # Set kafka_replication_factor parameter (https://hyperledger-fabric.readthedocs.io/en/release-1.2/kafka.html)
-     children:
-       nodes:
-         hosts:
-           kafka.example.com: # Describes which containers will run on this node
-             node_roles:
-               - zookeeper # Apache zookeeper instance
-               - kafka_broker # Apache kafka instance
-             org: kafka # Organization name
-             zookeeper_id: 0 # ID for zookeeper
-             kafka_broker_id: 0 # ID for kafka-broker
-             ansible_host: 172.16.16.1 # Real ip address or domain name of the machine
-             ansible_user: username  # User with sudo access
-             ansible_private_key_file: ~/path-to-private-key # Private key to identify ourselves
-             ansible_ssh_port: 22 # Specify ssh-port here, if case of it's not defaulted.
-           # Same structure for any other nodes
-           a.example.com:
-             node_roles:
-               - root_orderer # This node will be used to generate crypto-config for other orderers
-               - orderer # This node will host an orderer-service
-               - peer # This node will host peers and api containers for organization
-               - root_peer # This node will be used to create channels and instantiate chaincode
-               - zookeeper # Hosts zookeeper container for kafka-cluster
-               - kafka_broker # Hosts broker container for kafka-cluster
-               - explorer # Hosts hyperledger fabric blockchain explorer
-             org: a
-             orderer_id: 0 # ID of orderer-service which is running on this host
-             zookeeper_id: 1
-             kafka_broker_id: 1
-             ansible_host: 172.16.16.2
-             ansible_user: username
-             ansible_private_key_file: ~/path-to-private-key
-             ansible_ssh_port: 22
-           b.example.com:
-             node_roles:
-               - orderer
-               - peer
-               - zookeeper
-               - kafka_broker
-               - explorer
-             org: b
-             orderer_id: 1
-             zookeeper_id: 2
-             kafka_broker_id: 2
-             ansible_host: 172.16.16.3
-             ansible_user: username
-             ansible_private_key_file: ~/path-to-private-key
-             ansible_ssh_port: 22
-           c.example.com: # This node will host only kafka-broker and peer.
-             node_roles:
-               - peer
-               - orderer
-               - kafka_broker
-               - explorer
-             org: c
-             orderer_id: 2
-             kafka_broker_id: 3
-             ansible_host: 172.16.16.4
-             ansible_user: username
-             ansible_private_key_file: ~/path-to-private-key
-             ansible_ssh_port: 22
+---
+all:
+  hosts:
+    localhost: # localhost connection parameters, used for storing configuration while transferring it between nodes
+      ansible_connection: local
+  vars:
+    global_domain: example.com
+    global_chaincode_lang: golang # Programming language of chaincode
+    global_chaincode_version: 1.0 # Your chaincode version
+    global_channels:
+      - name: common # Channel name
+        particapants: # Organizations, should be included in channel
+          - org0
+          - org1
+          - org2
+          - org3
+        chaincode: # Chaincode params
+          name: reference
+          version: "{{ global_chaincode_version }}"
+          policy: ""
+          init: '{"Args":["init","a","100","b","100"]}'
+      - name: bilateral-1 # Channel name
+        particapants: # Organizations, should be included in channel
+          - org2
+          - org3
+        chaincode: # Chaincode params
+          name: relationship
+          version: "{{ global_chaincode_version }}"
+          policy: ""
+          init: '{"Args":["init","a","100","b","100"]}'
+    orderer_count: 4 # Amount of orderers in network
+  children:
+    nodes:
+      hosts:
+        org0.example.com: # Describes which containers will run on this node
+          node_roles:
+            - root_orderer # This node will be used to generate crypto-config for other orderers
+            - orderer # This node will host an orderer-service
+            - peer # This node will host peers and api containers for organization
+            - root_peer # This node will be used to create channels and instantiate chaincode
+            - explorer # This node will serve hyperledger fabric explorer
+          org: org0 # Organization name
+          orderer_id: 0
+          ansible_host: 192.168.1.4 # Real ip address or domain name of the machine
+          ansible_user: ubuntu  # User with sudo access
+          #ansible_private_key_file: ~/path-to-private-key # Private key to identify ourselves
+          ansible_ssh_port: 22 # Specify ssh-port here, if case of it's not defaulted.
+        # Same structure for any other nodes
+        org1.example.com:
+          node_roles:
+            - orderer # This node will host an orderer-service
+            - peer # This node will host peers and api containers for organization
+            - explorer
+          org: org1
+          orderer_id: 1 # ID of orderer-service which is running on this host
+          ansible_host: 192.168.1.3
+          ansible_user: ubuntu
+          #ansible_private_key_file: ~/path-to-private-key
+          ansible_ssh_port: 22
+        org2.example.com:
+          node_roles:
+            - orderer
+            - peer
+            - explorer
+          org: org2
+          orderer_id: 2
+          ansible_host: 192.168.1.2
+          ansible_user: ubuntu
+          #ansible_private_key_file: ~/path-to-private-key
+          ansible_ssh_port: 22
+        org3.example.com: # This node will host only kafka-broker and peer.
+          node_roles:
+            - peer
+            - orderer
+            - explorer
+          org: org3
+          orderer_id: 3
+          ansible_host: 192.168.1.1
+          ansible_user: ubuntu
+          #ansible_private_key_file: ~/path-to-private-key
+          ansible_ssh_port: 22
    ```
 Feel free, to fulfill each host with any ansible-related connection details you need, like `ansible_private_key_file`. You can read about ansible inventory [here](http://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html).
 
@@ -182,14 +176,14 @@ cd ansible-fabric-starter
 If your instances are debian-based (having apt package manager) you can automatically install python via:
 
 ```bash
-ansible-playbook install-python.yml -i hosts_kafka.yml
+ansible-playbook install-python.yml -i hosts_raft.yml
 ```
 
 By default ansible inventory is located in hosts.yml file. You can rename any configuration from example, or specify correct inventory via `-i` parameter.
 If deployment is performed for the first time, you may want to install all dependencies like docker etc.:
 
 ```bash 
-ansible-playbook install-dependencies.yml -i hosts_kafka.yml
+ansible-playbook install-dependencies.yml -i hosts_raft.yml
 ```
 
 Or if you'd like to keep your inventory configuration in `hosts.yml`:
@@ -201,7 +195,7 @@ ansible-playbook install-dependencies.yml
 After all the nodes are provisioned with all the necessary software, you can deploy the blockchain network to the configured instances:
 
 ```bash
-ansible-playbook config-network.yml -i hosts_kafka.yml
+ansible-playbook config-network.yml -i hosts_raft.yml
 ```
 
 _hint:_ _`config-network.yml` will include `start-network.yml` automatically._
@@ -211,12 +205,16 @@ If you'd like to redeploy network without reconfiguration, to drop the ledger fo
 ```bash 
 ansible-playbook start-network.yml -i hosts_kafka.yml
 ```
+#### How to deploy hyperledger explorer?
+
+1) Deploy network with ansible fabric starter.
+2) Execute start-explorer.yml playbook like `ansible-playbook start-explorer.yml -i <your inventory file>`
 
 #### How to perform chaincode upgrade?
 
 1) Put new chaincode sources in `templates/chincode`
-2) Update `chaincode_version` in `group_vars/all.yml` or pass as env var via '-e' ansible paramter
-3) Execute chaincode-upgrade.yml playbook like `ansible-playbook chaincode-upgrade.yml -i <your inventory file> '-e chaincode_version=2.0'`
+2) Update chaincode version in inventory file or pass as env var via '-e' ansible paramter.
+3) Execute chaincode-upgrade.yml playbook like `ansible-playbook chaincode-upgrade.yml -i <your inventory file> '-e global_chaincode_version=2.0'`
 
 Playbook will perform chaincode upgrade when `chaincode_version` you specified differs from installed chaincode version.
 
@@ -239,7 +237,7 @@ All test data should specified in 'set_facts' task of `test.yml` and `test_bilat
 Launching test playbooks is like any other ansible playbooks:
 
 ```bash
-ansible-playbook test.yml -i hosts_kafka.yml
+ansible-playbook test.yml -i hosts_raft.yml
 ```
 
 #### How to access blockchain explorer?
@@ -287,7 +285,7 @@ Calls mentioned earlier roles, to install all necessary software and prepare tar
 
 ##### **config-network.yml**
 
-Generates HL fabric and Docker-compose configuration-files from templates and transfers them to target hosts. _(e.g. `./network.sh -m generate `in fabric-starter)_
+Generates HL fabric and Docker-compose configuration-files from templates and transfers them to target hosts.
     
 1. Deletes any existing configuration of HL-fabric and Docker-containers. (all described nodes, including localhost)
 2. Templates all configs, specified in `group_vars/all.yml`:
@@ -312,34 +310,34 @@ Generates HL fabric and Docker-compose configuration-files from templates and tr
     
     Docker:
     
-        1. docker-compose-{{ domain }}.yaml
+        1. docker-compose-{{ global_domain }}.yaml
     
     HL-fabric:
         
-        1. cryptogen-{{ domain }}.yaml
+        1. cryptogen-{{ global_domain }}.yaml
 
-9. Generates crypto material with HL cryptogen tool, using container `cli` and configuration file `cryptogen-{{ domain }}.yaml`.
+9. Generates crypto material with HL cryptogen tool, using container `cli` and configuration file `cryptogen-{{ global_domain }}.yaml`.
 10. Generates orderer genesis block with configtxgen tool,  using container `cli`.
 11. Generates config transaction (.tx) files for `common` and all specified in `hosts.yml` channels with configtxgen tool, using container `cli`.
 12. Synchronizes all configuration files generated by orderer to other nodes.
 
 #### **start-network.yml** 
 
-Creates all channels and starts blockchain network. _(e.g. `./network.sh -m up` in fabric-starter)_
+Creates all channels and starts blockchain network.
     
 1. Synchronizes www-client content to all nodes, this will be mapped to `api` container by docker, to serve web-client application.
 2. Synchronizes `docker-compose-zookeeper.yaml` and `docker-compose-kafka-broker.yaml` (if specified).
 3. Starts kafka-cluster according configuration, with `docker-compose-zookeeper.yaml` and `docker-compose-kafka-broker.yaml` (if specified).
-4. Starts orderer docker conainers with docker-compose and `docker-compose-{{ domain }}.yaml` config file:
-    * orderer{{ orderer_id | default() }}.{{ domain }} (fabric orderer service)
-    * cli.{{ domain }} (fabric command line interface)
+4. Starts orderer docker conainers with docker-compose and `docker-compose-{{ global_domain }}.yaml` config file:
+    * orderer{{ orderer_id | default() }}.{{ global_domain }} (fabric orderer service)
+    * cli.{{ global_domain }} (fabric command line interface)
 5. Starts peer docker conainers with docker-compose and `docker-compose-{{ org }}.yaml` config file:
-    * ca.{{ org }}.{{ domain }} (fabric ca)
-    * peer0.{{ org }}.{{ domain }}
+    * ca.{{ org }}.{{ global_domain }} (fabric ca)
+    * peer0.{{ org }}.{{ global_domain }}
     * api.{{ org }}.domain (web-client interface)
-    * cli.{{ domain }} (fabric command line interface)
-    * cli.{{ org }}.{{ domain }} (fabric command line interface)
-    * cliNoCryptoVolume.{{ org }}.{{ domain }} (fabric command line interface)
+    * cli.{{ global_domain }} (fabric command line interface)
+    * cli.{{ org }}.{{ global_domain }} (fabric command line interface)
+    * cliNoCryptoVolume.{{ org }}.{{ global_domain }} (fabric command line interface)
 6. Creates shell scripts for manual network start and stop.
 7. Installs chaincode to common and all other specified channels, using `cli` container.
 8. Creates common and all other specified channels, using `cli` container of root_peer.
@@ -381,8 +379,6 @@ Depending on a "role", each node will receive it's specific docker containers an
 All possible node roles:
 * **orderer** - node will run orderer service
 * **root_orderer** - this orderer will be used to generate configs for other orderers (in case of kafka multi-orderer setup, one role per network)
-* **kafka_broker** - node will run a kafka-broker for kafka-cluster (optional)
-* **zookeeper** - node will run a zookeeper instance for kafka-cluser (optional)
 * **root_peer** - node will be used to create all channels and instantiate chaincode for the whole network (one role per network)
 * **peer** - node will peer and api container for specified organization.
 * **explorer** - node will serve Hyperledger Blockchain explorer, served port and explorer version configurable in 'group_vars/all.yml'.

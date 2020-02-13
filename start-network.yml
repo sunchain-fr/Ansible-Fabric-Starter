@@ -10,7 +10,7 @@
       when: "newcomers is defined"
 
     - name: Clean all previous dockers, if any
-      raw: "docker rm -f $(docker ps -a | grep {{ domain }} | awk '{print $1};')"
+      raw: "docker rm -f $(docker ps -a | grep {{ global_domain }} | awk '{print $1};')"
       ignore_errors: true
 
     - name: Clean all docker volumes
@@ -37,96 +37,31 @@
         ansible_user_uid: "{{ ansible_uid.stdout | int }}"
         ansible_user_gid: "{{ ansible_gid.stdout | int }}"
 
-    - name: Starting kafka-zookeppers
-      block:
-      - name: Transfer zookeeper configuration file for docker compose
-        template:
-          src: "docker-compose-templates/docker-composetemplate-zookeeper.yaml"
-          dest: "{{ docker_artifacts }}/docker-compose-zookeeper-{{ inventory_hostname_short }}.yaml"
-
-      - name: Start kafka-zookeper
-        raw: "docker-compose -f {{ docker_artifacts }}/docker-compose-zookeeper-{{ inventory_hostname_short }}.yaml up -d 2>&1"
-
-      - name: Generate init-script..
-        lineinfile:
-          path: "{{ fabric_starter_workdir }}/start-node.sh"
-          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-zookeeper-{{ inventory_hostname_short }}.yaml up -d 2>&1"
-          create: yes
-
-      - name: Generate down-script..
-        lineinfile:
-          path: "{{ fabric_starter_workdir }}/stop-node.sh"
-          insertbefore: BOF
-          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-zookeeper-{{ inventory_hostname_short }}.yaml down"
-          create: yes
-
-      - name: Let zookpeers select leader
-        raw: "docker logs $(docker ps | grep zookeeper | awk '{ print $1 }')"
-        register: docker_logs_output
-        until: '"LEADER ELECTION TOOK" in docker_logs_output.stdout'
-        retries: 30
-        delay: 1
-
-      when: "'zookeeper' in node_roles"
-
-    - name: Starting kafka-brokers
-      block:
-      - name: Transfer kafka-broker configuration file for docker compose
-        template:
-          src: "docker-compose-templates/docker-composetemplate-kafka-broker.yaml"
-          dest: "{{ docker_artifacts }}/docker-compose-kafka-broker-{{ inventory_hostname_short }}.yaml"
-
-      - name: Start kafka-broker
-        raw: "docker-compose -f {{ docker_artifacts }}/docker-compose-kafka-broker-{{ inventory_hostname_short }}.yaml up -d 2>&1"
-
-      - name: Generate init-script..
-        lineinfile:
-          path: "{{ fabric_starter_workdir }}/start-node.sh"
-          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-kafka-broker-{{ inventory_hostname_short }}.yaml up -d 2>&1"
-          create: yes
-
-      - name: Generate down-script..
-        lineinfile:
-          path: "{{ fabric_starter_workdir }}/stop-node.sh"
-          insertbefore: BOF
-          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-kafka-broker-{{ inventory_hostname_short }}.yaml down"
-          create: yes
-
-      - name: Let kafka-cluster start
-        raw: "docker logs $(docker ps | grep kafka-broker | awk '{ print $1 }')"
-        register: docker_logs_output
-        until: '"started" in docker_logs_output.stdout'
-        retries: 30
-        delay: 1
-
-      when: "'kafka_broker' in node_roles"
-
     - name: Starting orderer
       block:
 
       - name: Start orderer
-        raw: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml up -d 2>&1"
+        raw: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ global_domain }}.yaml up -d 2>&1"
 
       - name: Generate init-script..
         lineinfile:
           path: "{{ fabric_starter_workdir }}/start-node.sh"
-          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml up -d 2>&1"
+          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ global_domain }}.yaml up -d 2>&1"
           create: yes
 
       - name: Generate down-script..
         lineinfile:
           path: "{{ fabric_starter_workdir }}/stop-node.sh"
           insertbefore: BOF
-          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ domain }}.yaml down"
+          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ global_domain }}.yaml down"
           create: yes
 
       - name: Let orderer start
-        raw: "docker logs orderer{{ orderer_id | default() }}.{{ domain }}"
+        raw: "docker logs orderer{{ orderer_id | default() }}.{{ global_domain }}"
         register: result
-        until: result.stdout.find("Starting Raft node") != -1
+        until: result.stdout.find("Beginning to serve requests") != -1
         retries: 60
         delay: 1
-        when: "'etcdraft' in orderer_type"
 
       when: "'orderer' in node_roles"
 
@@ -169,206 +104,73 @@
           create: yes
 
       - name: Install chaincode
-        raw: "{{ item }}"
-        loop:
-          - "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_common_name }} {% else %} {{ chaincode_common_name }} {% endif %} -l {{ chaincode_lang }}'"
-          #- "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_common_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_common_name }} {% else %} {{ chaincode_common_name }} {% endif %} -l {{ chaincode_lang }}'"
-        retries: 10
-        delay: 1
-        register: result
-        until: result.rc == 0
-
-      - name: Install chaincode for additional cahnnels, if any
-        raw: "{{ item }}"
-        loop:
-          - "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_bilateral_name }} {% else %} {{ chaincode_bilateral_name }} {% endif %} -l {{ chaincode_lang }}'"
-          #- "docker exec 'cli.{{ org }}.{{ domain }}' bash -c 'export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer chaincode install -n {{ chaincode_bilateral_name }} -v {{ chaincode_version }} -p {% if chaincode_lang != 'golang' %} /opt/gopath/src/{{ chaincode_bilateral_name }} {% else %} {{ chaincode_bilateral_name }} {% endif %} -l {{ chaincode_lang }}'"
-        when: "additional_channels is defined"
+        include_tasks: playbooks/install_chaincode.yaml
+        loop: "{{ global_channels }}"
 
       when: "'peer' in node_roles"
 
     - name: Creating channels
       block:
 
-      - name: Creating common channels
-        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel create -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ common_channel_name }} -f /etc/hyperledger/artifacts/channel/{{ common_channel_name }}.tx --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
-
-      - name: Changing ownership of channel block files
-        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
-
-      - name: Joining common channel
-        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ common_channel_name }}.block"'
-
-      #- raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ common_channel_name }}.block"'
-
-      - name: Instantiating chaincode for common channel with endorsement policy
-        raw: "docker exec cli.{{ org }}.{{ domain }} bash -c \
-        'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && \
-        peer chaincode instantiate -n {{ chaincode_common_name }} \
-        -P \"$CC_ENDORSEMENT_COMMON\" -l {{ chaincode_lang }} \
-        -v {{ chaincode_version }} -c {{ chanicode_common_init | to_json }} \
-        -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} \
-        -C {{ common_channel_name }} \
-        --tls \
-        --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt \
-        {{ collections_config_param }} {{ collections_config_path }}'"
-        when: "chaincode_endorcement_policy_common != ''"
-
-      - name: Instantiating chaincode for common channel
-        raw: "docker exec cli.{{ org }}.{{ domain }} bash -c \
-        'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && \
-        peer chaincode instantiate -n {{ chaincode_common_name }} \
-        -l {{ chaincode_lang }} \
-        -v {{ chaincode_version }} \
-        -c {{ chanicode_common_init | to_json }} \
-        -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} \
-        -C {{ common_channel_name }} \
-        --tls \
-        --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt \
-        {{ collections_config_param }} {{ collections_config_path }}'"
-
-        when: "chaincode_endorcement_policy_common == ''"
-
-      - name: Create all folders for rsync..
-        file:
-          path: "./artifacts/{{ item.to }}"
-          state: directory
-        loop: "{{ files_to_rsync_nodes_phase2 }}"
-        delegate_to: localhost
-
-      - name: Synchronize genrated block files (artifacts)
-        synchronize: src="{{ fabric_artifacts }}/{{ item.from }}" dest="./artifacts/{{ item.to }}" mode=pull recursive=yes
-        loop: "{{ files_to_rsync_nodes_phase2 }}"
-
-      when: "'root_peer' in node_roles"
-
-    - name: Joining common channels by other nodes
-      block:
-
-        - name: Synchronize genrated block files (artifacts)
-          become: true
-          synchronize: src="artifacts" dest="{{ fabric_starter_workdir }}" recursive=yes
-
-        - name: Joining common channel
-          raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ common_channel_name }}.block"'
-
-        #- raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ common_channel_name }}.block"'
-
-        - name: Changing ownership of channel block files
-          raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} /etc/hyperledger/artifacts"'
-
-      when: "'root_peer' not in node_roles and 'peer' in node_roles"
-
-    - name: Update common anchor peers
-      block:
-        - name: Updating channels anchor peers
-          raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ common_channel_name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ common_channel_name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
-
-      when: "'peer' in node_roles"
-
-    - name: Creating addtional channels, if any
-      block:
-
-      - name: Creating other channels
-        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel create -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
-        loop: "{{ additional_channels }}"
+      - name: Creating channels
+        raw: "docker exec cli.{{ org }}.{{ global_domain }} bash -c 'peer channel create \
+        -o orderer{{ orderer_id | default() }}.{{ global_domain }}:7050 \
+        -c {{ item.name }} \
+        -f /etc/hyperledger/artifacts/channel/{{ item.name }}.tx \
+        --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ global_domain }}/tlsca/tlsca.{{ global_domain }}-cert.pem'"
+        loop: "{{ global_channels }}"
         when: "org in item.particapants[0]"
 
       - name: Changing ownership of channel block files
-        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+        raw: 'docker exec "cli.{{ org }}.{{ global_domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
       - name: Synchronize genrated block files (artifacts)
-        synchronize: src="{{ fabric_artifacts }}/*.block" dest="./artifacts/" mode=pull recursive=yes
-        loop: "{{ additional_channels }}"
+        synchronize: src="{{ fabric_artifacts }}/{{ item.name }}.block" dest="./artifacts/" mode=pull recursive=yes
+        loop: "{{ global_channels }}"
         when: "org in item.particapants[0]"
 
-      - name: Synchronize genrated block files (artifacts)
-        become: true
-        synchronize: src="artifacts" dest="{{ fabric_starter_workdir }}" recursive=yes
+      - name: Synchronize generated block files (artifacts) back
+        # become: true
+        synchronize: src="artifacts/{{ item.name }}.block" dest="{{ fabric_artifacts }}/" recursive=yes
+        loop: "{{ global_channels }}"
+        when: "org in item.particapants"
 
       - name: Joining other channels
-        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
-        loop: "{{ additional_channels }}"
+        raw: 'docker exec "cli.{{ org }}.{{ global_domain }}" bash -c "export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ global_domain }}:7051 && peer channel join -b {{ item.name }}.block"'
+        loop: "{{ global_channels }}"
         when: "org in item.particapants"
 
-#      - raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "export CORE_PEER_ADDRESS=peer1.{{ org }}.{{ domain }}:7051 && peer channel join -b {{ item.name }}.block"'
-#        loop: "{{ additional_channels }}"
-#        when: "org in item.particapants"
-
-      - name: Instantiating chaincode for other channels with ensorsement policy, if any
-        raw: "docker exec cli.{{ org }}.{{ domain }} bash -c \
-        'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && \
-        peer chaincode instantiate -n {{ chaincode_bilateral_name }} \
-        -P \"$CC_ENDORSEMENT_BILATERAL\" \
-        -v {{ chaincode_version }} \
-        -c {{ chanicode_bilateral_init | to_json }} \
-        -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ item.name }} --tls \
-        --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt\
+      - name: Instantiating chaincode with ensorsement policy
+        raw: "docker exec cli.{{ org }}.{{ global_domain }} bash -c \
+        'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ global_domain }}:7051 && \
+        peer chaincode instantiate -n {{ item.chaincode.name }} \
+        -P \"{{ item.chaincode.policy }}\" \
+        -v {{ item.chaincode.version }} \
+        -c {{ item.chaincode.init | to_json }} \
+        -o orderer{{ orderer_id | default() }}.{{ global_domain }}:7050 -C {{ item.name }} --tls \
+        --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ global_domain }}/tlsca/tlsca.{{ global_domain }}-cert.pem \
         {{ collections_config_param }} {{ collections_config_path }}'"
-        loop: "{{ additional_channels }}"
-        when: "org in item.particapants[0] and chaincode_endorcement_policy_common != ''"
+        loop: "{{ global_channels }}"
+        when: "org in item.particapants[0] and item.chaincode.policy != ''"
 
-      - name: Instantiating chaincode for other channels, if any
-        raw: "docker exec cli.{{ org }}.{{ domain }} bash -c \
-        'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ domain }}:7051 && \
-        peer chaincode instantiate -n {{ chaincode_bilateral_name }} \
-        -v {{ chaincode_version }} \
-        -c {{ chanicode_bilateral_init | to_json }} \
-        -o orderer{{ orderer_id | default() }}.{{ domain }}:7050 -C {{ item.name }} --tls \
-        --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt\
+      - name: Instantiating chaincode
+        raw: "docker exec cli.{{ org }}.{{ global_domain }} bash -c \
+        'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ global_domain }}:7051 && \
+        peer chaincode instantiate -n {{ item.chaincode.name }} \
+        -v {{ item.chaincode.version }} \
+        -c {{ item.chaincode.init | to_json }} \
+        -o orderer{{ orderer_id | default() }}.{{ global_domain }}:7050 -C {{ item.name }} --tls \
+        --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ global_domain }}/tlsca/tlsca.{{ global_domain }}-cert.pem \
         {{ collections_config_param }} {{ collections_config_path }}'"
-
-        loop: "{{ additional_channels }}"
-        when: "org in item.particapants[0] and chaincode_endorcement_policy_common == ''"
+        loop: "{{ global_channels }}"
+        when: "org in item.particapants[0] and item.chaincode.policy == ''"
 
       - name: Changing ownership of channel block files
-        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+        raw: 'docker exec "cli.{{ org }}.{{ global_domain }}" bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
       - name: Updating anchor peers
-        raw: 'docker exec "cli.{{ org }}.{{ domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls  --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
-        loop: "{{ additional_channels }}"
+        raw: 'docker exec "cli.{{ org }}.{{ global_domain }}" bash -c "peer channel update -o orderer{{ orderer_id | default() }}.{{ global_domain }}:7050 -c {{ item.name }} -f /etc/hyperledger/artifacts/channel/{{ org }}MSPanchors-{{ item.name }}.tx --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ global_domain }}/tlsca/tlsca.{{ global_domain }}-cert.pem"'
+        loop: "{{ global_channels }}"
         when: "org in item.particapants"
 
-      when: "additional_channels is defined and 'peer' in node_roles"
-
-
-    - name: Deploy Hyperledger Explorer
-      block:
-
-        - name: Template SDK network-config
-          template:
-            src: "{{ item.from }}"
-            dest: "{{ item.to }}"
-          loop: "{{ files_hl_explorer }}"
-
-        - name: Launch Hyperledger explorer
-          raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-explorer.yaml up -d 2>&1'
-
-        - name: Let PostgreSQL start
-          raw: "docker logs $(docker ps | grep explorer-db.{{ org }}.{{ domain }} | awk '{ print $1 }')"
-          register: docker_logs_output
-          until: '"ready" in docker_logs_output.stdout'
-          retries: 30
-          delay: 1
-
-        - name: Migrate Explorer Database
-          raw: 'docker exec explorer-db.{{ org }}.{{ domain }} /bin/bash /opt/createdb.sh'
-
-        - name: Restart Blockchain Explorer to obtain all changes..
-          raw: "docker restart explorer.{{ org }}.{{ domain }}"
-
-        - name: Update init-script..
-          lineinfile:
-            path: "{{ fabric_starter_workdir }}/start-node.sh"
-            line: "docker-compose -f {{ docker_artifacts }}/docker-compose-explorer.yaml up -d 2>&1"
-            create: yes
-
-        - name: Update down-script..
-          lineinfile:
-            path: "{{ fabric_starter_workdir }}/stop-node.sh"
-            insertbefore: BOF
-            line: "docker-compose -f {{ docker_artifacts }}/docker-compose-explorer.yaml down"
-            create: yes
-
-      when: "'explorer' in node_roles"
-      tags: [ 'explorer']
+      when: "global_channels is defined and 'peer' in node_roles"

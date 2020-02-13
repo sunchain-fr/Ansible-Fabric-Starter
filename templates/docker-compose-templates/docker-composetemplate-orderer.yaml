@@ -5,16 +5,16 @@
 version: '2'
 
 volumes:
-  orderer{{ orderer_id | default() }}.{{ domain }}:
+  orderer{{ orderer_id | default() }}.{{ global_domain }}:
 
 services:
 
-  orderer{{ orderer_id | default() }}.{{ domain }}:
-    container_name: orderer{{ orderer_id | default() }}.{{ domain }}
+  orderer{{ orderer_id | default() }}.{{ global_domain }}:
+    container_name: orderer{{ orderer_id | default() }}.{{ global_domain }}
     restart: {{ docker_restart_policy }}
     image: hyperledger/fabric-orderer:{{ fabric_pack }}
     environment:
-      - ORDERER_HOST=orderer{{ orderer_id | default() }}.{{ domain }}
+      - ORDERER_HOST=orderer{{ orderer_id | default() }}.{{ global_domain }}
       - ORDERER_GENERAL_LOGLEVEL=info
       - ORDERER_GENERAL_LISTENADDRESS=0.0.0.0
       - ORDERER_GENERAL_GENESISMETHOD=file
@@ -34,21 +34,19 @@ services:
       - {{ orderer_port }}:7050
     volumes:
         - {{ fabric_artifacts }}/channel:/etc/hyperledger/configtx
-        - {{ fabric_artifacts }}/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/:/etc/hyperledger/crypto/orderer
-        - orderer{{ orderer_id | default() }}.{{ domain }}:/var/hyperledger/production/orderer
-{% if 'solo' not in orderer_type %}
+        - {{ fabric_artifacts }}/crypto-config/ordererOrganizations/{{ global_domain }}/orderers/orderer{{ orderer_id | default() }}.{{ global_domain }}/:/etc/hyperledger/crypto/orderer
+        - orderer{{ orderer_id | default() }}.{{ global_domain }}:/var/hyperledger/production/orderer
     extra_hosts:
 {% for fabric_host in groups['nodes'] %}
 {% if hostvars[fabric_host].inventory_hostname|string() != inventory_hostname|string() %}
 {% if 'orderer' in hostvars[fabric_host].node_roles %}
-      - orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ domain }}:{{ hostvars[fabric_host].ansible_host }}
+      - orderer{{ hostvars[fabric_host].orderer_id | default() }}.{{ global_domain }}:{{ hostvars[fabric_host].ansible_host }}
 {% endif %}
 {% endif %}
 {% endfor %}
-{% endif %}
 
-  cli.{{ domain }}:
-    container_name: cli.{{ domain }}
+  cli.{{ global_domain }}:
+    container_name: cli.{{ global_domain }}
     environment:
       - FABRIC_CFG_PATH=/etc/hyperledger/artifacts
     extends:

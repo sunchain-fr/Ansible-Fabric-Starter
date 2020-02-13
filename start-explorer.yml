@@ -1,0 +1,43 @@
+---
+- hosts: nodes
+  tasks:
+    - name: Deploy Hyperledger Explorer
+      block:
+
+        - name: Template SDK network-config
+          template:
+            src: "{{ item.from }}"
+            dest: "{{ item.to }}"
+          loop: "{{ files_hl_explorer }}"
+
+        - name: Launch Hyperledger explorer
+          raw: 'docker-compose --file {{ docker_artifacts }}/docker-compose-explorer.yaml up -d 2>&1'
+
+        - name: Let PostgreSQL start
+          raw: "docker logs $(docker ps | grep explorer-db.{{ org }}.{{ global_domain }} | awk '{ print $1 }')"
+          register: docker_logs_output
+          until: '"ready" in docker_logs_output.stdout'
+          retries: 30
+          delay: 1
+
+        - name: Migrate Explorer Database
+          raw: 'docker exec explorer-db.{{ org }}.{{ global_domain }} /bin/bash /opt/createdb.sh'
+
+        - name: Restart Blockchain Explorer to obtain all changes..
+          raw: "docker restart explorer.{{ org }}.{{ global_domain }}"
+
+        - name: Update init-script..
+          lineinfile:
+            path: "{{ fabric_starter_workdir }}/start-node.sh"
+            line: "docker-compose -f {{ docker_artifacts }}/docker-compose-explorer.yaml up -d 2>&1"
+            create: yes
+
+        - name: Update down-script..
+          lineinfile:
+            path: "{{ fabric_starter_workdir }}/stop-node.sh"
+            insertbefore: BOF
+            line: "docker-compose -f {{ docker_artifacts }}/docker-compose-explorer.yaml down"
+            create: yes
+
+      when: "'explorer' in node_roles"
+      tags: [ 'explorer']

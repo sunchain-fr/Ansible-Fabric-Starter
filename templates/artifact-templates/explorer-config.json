@@ -18,23 +18,10 @@
     }
   },
   "channels": {
-    "{{ common_channel_name }}": {
-      "peers": {
-        "peer0.{{ org }}.{{ domain }}": {}
-      },
-      "connection": {
-        "timeout": {
-          "peer": {
-            "endorser": "6000",
-            "eventHub": "6000",
-            "eventReg": "6000"
-          }
-        }
-      }
-    }{% if additional_channels is defined %}{% for channel in additional_channels %}{% if org in channel.particapants %},
+{% if global_channels is defined %}{% for channel in global_channels %}{% if org in channel.particapants %}
   "{{ channel.name }}": {
           "peers": {
-          {% for particapant in channel.particapants %}"peer0.{{ particapant }}.{{ domain }}":  {}{% if not loop.last %},{% endif %}{% endfor %}
+          {% for particapant in channel.particapants %}"peer0.{{ particapant }}.{{ global_domain }}":  {}{% if not loop.last %},{% endif %}{% endfor %}
           },
           "connection": {
             "timeout": {
@@ -45,7 +32,7 @@
               }
             }
           }
-  }
+  }{% if not loop.last %},{% endif %}
 {% endif %}
 {% endfor %}
 {% endif %}
@@ -55,22 +42,22 @@
       "mspid": "{{ org }}MSP",
       "fullpath": true,
       "adminPrivateKey": {
-        "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/users/Admin@{{ org }}.{{ domain }}/msp/keystore/server.key"
+        "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/users/Admin@{{ org }}.{{ global_domain }}/msp/keystore/server.key"
       },
       "signedCert": {
-        "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/users/Admin@{{ org }}.{{ domain }}/msp/signcerts/Admin@{{ org }}.{{ domain }}-cert.pem"
+        "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/users/Admin@{{ org }}.{{ global_domain }}/msp/signcerts/Admin@{{ org }}.{{ global_domain }}-cert.pem"
       }
     }
   },
   "peers": {
-    "peer0.{{ org }}.{{ domain }}": {
+    "peer0.{{ org }}.{{ global_domain }}": {
       "tlsCACerts": {
-        "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ domain }}/peers/peer0.{{ org }}.{{ domain }}/tls/ca.crt"
+        "path": "/fabric/crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/peers/peer0.{{ org }}.{{ global_domain }}/tls/ca.crt"
       },
-      "url": "grpcs://peer0.{{ org }}.{{ domain }}:7051",
-      "eventUrl": "grpcs://peer0.{{ org }}.{{ domain }}:7053",
+      "url": "grpcs://peer0.{{ org }}.{{ global_domain }}:7051",
+      "eventUrl": "grpcs://peer0.{{ org }}.{{ global_domain }}:7053",
       "grpcOptions": {
-        "ssl-target-name-override": "peer0.{{ org }}.{{ domain }}"
+        "ssl-target-name-override": "peer0.{{ org }}.{{ global_domain }}"
       }
     }
   }

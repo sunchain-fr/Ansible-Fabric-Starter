@@ -98,11 +98,10 @@ files_to_rsync_orderer:
 
 files_to_rsync_nodes_phase1:
   - from: "crypto-config/ordererOrganizations/{{ global_domain }}/orderers"
-    to: "crypto-config/ordererOrganizations/{{ global_domain }}/"
+    to: "crypto-config/ordererOrganizations/{{ global_domain }}"
+  - from: "crypto-config/ordererOrganizations/{{ global_domain }}/tlsca/tlsca.{{ global_domain }}-cert.pem"
+    to: "crypto-config/ordererOrganizations/{{ global_domain }}/tlsca"
   - from: "channel"
-    to: ""
-files_to_rsync_nodes_phase2:
-  - from: "*.block"
     to: ""
 
 files_hl_explorer:
