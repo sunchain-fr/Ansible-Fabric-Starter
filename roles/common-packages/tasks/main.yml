@@ -1,7 +1,8 @@
 ---
 - name: Install required packages.
-  package:
+  apt:
     name: "{{ item }}"
+    update_cache: yes
     state: present
   loop: "{{ debian_package_list }}"
   when: ansible_os_family == 'Debian'
@@ -12,8 +13,3 @@
     state: present
   loop: "{{ redhat_package_list }}"
   when: ansible_os_family == 'RedHat'
-
-- name: Install docker driver for python.
-  pip:
-    name: "{{ item }}"
-  loop: "{{ pip_packages }}"
