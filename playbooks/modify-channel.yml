@@ -1,58 +1,65 @@
 ---
+#- name: Calculate all variables..
+#  set_fact:
+#    new_orderers: "{% set orderers=[] %}{% for fabric_host in groups['nodes'] %}{% if 'newcomer' in hostvars[fabric_host].node_roles and 'orderer' in hostvars[fabric_host].node_roles %}{{ orderers.append('orderer' + hostvars[fabric_host].orderer_id | string + '.' + global_domain )}}{% endif %}{% endfor %}{{ orderers | list }}"
 
 - name: Start CLI container
-  raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d 'cli.{{ org }}.{{ domain }}' 2>&1"
+  raw: "docker-compose --file {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d 'cli.{{ org }}.{{ global_domain }}' 2>1"
 
 - name: Install jq tool inside cli container
-  raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "apt-get update && apt-get install jq"'
+  raw: 'docker exec cli.{{ org }}.{{ global_domain }} bash -c "apt-get update && apt-get install jq"'
+
+- name: Set workdir name
+  set_fact:
+    workdir_name: "adjust_channel_{{ mod_channel }}"
 
 - name: Copying core.yaml to FABRIC_CFG_PATH
-  raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "cp /etc/hyperledger/fabric/core.yaml /etc/hyperledger/artifacts/core.yaml"'
+  raw: 'docker exec cli.{{ org }}.{{ global_domain }} bash -c "cp /etc/hyperledger/fabric/core.yaml /etc/hyperledger/artifacts/core.yaml && mkdir {{ workdir_name }} || true"'
 
 - name: Fetching channel block
-  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ domain }} bash -c "peer channel fetch config ./channel/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ global_domain }} bash -c "peer channel fetch config ./{{ workdir_name }}/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ global_domain }}:{{ orderer_port }} -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ global_domain }}/tlsca/tlsca.{{ global_domain }}-cert.pem"'
   when: "'testchainid' not in mod_channel"
 
 - name: Fetching testchainid channel block
-  raw: 'docker-compose -f {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ domain }} bash -c "peer channel fetch config ./channel/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ domain }}:{{ orderer_port }} -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ domain }}/orderers/orderer{{ orderer_id | default() }}.{{ domain }}/tls/ca.crt"'
+  raw: 'docker-compose -f {{ docker_artifacts }}/docker-compose-{{ org }}.yaml run --rm -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ global_domain }} bash -c "peer channel fetch config ./{{ workdir_name }}/config_{{ mod_channel }}_current.pb -o orderer{{ orderer_id | default() }}.{{ global_domain }}:{{ orderer_port }} -c {{ mod_channel }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ global_domain }}/tlsca/tlsca.{{ global_domain }}-cert.pem"'
   when: "'testchainid' in mod_channel"
 
 - name: Decoding channel block
-  raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "configtxlator proto_decode --input ./channel/config_{{ mod_channel }}_current.pb --type {{ common_channel_name }}.Block | jq .data.data[0].payload.data.config > config_{{ mod_channel }}.json"'
+  raw: 'docker exec cli.{{ org }}.{{ global_domain }} bash -c "configtxlator proto_decode --input ./{{ workdir_name }}/config_{{ mod_channel }}_current.pb --type common.Block | jq .data.data[0].payload.data.config > {{ workdir_name }}/config_{{ mod_channel }}.json"'
 
 - name: Changing artifacts file ownership
-  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ domain }} bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ global_domain }} bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
 - name: Adding new org(s) to a configuraion
-  raw: "cd {{ fabric_artifacts }} && jq -s '.[0] * {\"channel_group\":{\"groups\":{\"Application\":{\"groups\": {\"{{ item }}MSP\":.[1]}}}}}' config_{{ mod_channel }}.json {{ item }}Config.json >& config_{{ mod_channel }}_new.json"
-  loop: "{{ mod_channel_participants }}"
+  raw: "cd {{ fabric_artifacts }}/{{ workdir_name }} && jq -s '.[0] * {\"channel_group\":{\"groups\":{\"Application\":{\"groups\": {\"{{ item }}MSP\":.[1]}}}}}' config_{{ mod_channel }}.json ../{{ item }}Config.json > config_{{ mod_channel }}_new.json"
+  loop: "{{ mod_channel_participants | list }}"
   when: "'testchainid' not in mod_channel"
 
-- name: Adding new org(s) to a configuraion
-  raw: "cd {{ fabric_artifacts }} && jq -s '.[0] * {\"channel_group\":{\"groups\":{\"Consortiums\":{\"groups\":{\"SampleConsortium\":{\"groups\": {\"{{ item }}MSP\":.[1]}}}}}}}' config_{{ mod_channel }}.json {{ item }}Config.json >& config_{{ mod_channel }}_new.json"
-  loop: "{{ mod_channel_participants }}"
+- name: Adding new org(s) to a system configuraion
+  raw: "cd {{ fabric_artifacts }}/{{ workdir_name }} && jq -s '.[0] * {\"channel_group\":{\"groups\":{\"Consortiums\":{\"groups\":{\"SampleConsortium\":{\"groups\": {\"{{ item }}MSP\":.[1]}}}}}}}' config_{{ mod_channel }}.json ../{{ item }}Config.json > config_{{ mod_channel }}_new.json"
+  loop: "{{ mod_channel_participants | list }}"
   when: "'testchainid' in mod_channel"
 
 - name: Encoding old channel block
-  raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "configtxlator proto_encode --input config_{{ mod_channel }}.json --type {{ common_channel_name }}.Config --output ./channel/config_{{ mod_channel }}_no_headers.pb"'
+  raw: 'docker exec cli.{{ org }}.{{ global_domain }} bash -c "configtxlator proto_encode --input {{ workdir_name }}/config_{{ mod_channel }}.json --type common.Config --output ./{{ workdir_name }}/config_{{ mod_channel }}_no_headers.pb"'
 
 - name: Encoding new channel block
-  raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "configtxlator proto_encode --input config_{{ mod_channel }}_new.json --type {{ common_channel_name }}.Config --output ./channel/config_{{ mod_channel }}_new_no_headers.pb"'
+  raw: 'docker exec cli.{{ org }}.{{ global_domain }} bash -c "configtxlator proto_encode --input {{ workdir_name }}/config_{{ mod_channel }}_new.json --type common.Config --output ./{{ workdir_name }}/config_{{ mod_channel }}_new_no_headers.pb"'
 
 - name: Calculating delta between old and new blocks
-  raw: 'docker exec cli.{{ org }}.{{ domain }} bash -c "configtxlator compute_update --channel_id {{ mod_channel }} --original ./channel/config_{{ mod_channel }}_no_headers.pb --updated ./channel/config_{{ mod_channel }}_new_no_headers.pb --output ./channel/config_{{ mod_channel }}_new_delta.pb"'
+  raw: 'docker exec cli.{{ org }}.{{ global_domain }} bash -c "configtxlator compute_update --channel_id {{ mod_channel }} --original ./{{ workdir_name }}/config_{{ mod_channel }}_no_headers.pb --updated ./{{ workdir_name }}/config_{{ mod_channel }}_new_no_headers.pb --output ./{{ workdir_name }}/config_{{ mod_channel }}_new_delta.pb"'
 
 - name: Decoding delta to json.
-  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ domain }} bash -c "configtxlator proto_decode --input ./channel/config_{{ mod_channel }}_new_delta.pb --type {{ common_channel_name }}.ConfigUpdate | jq . > config_{{ mod_channel }}_new_delta.json"'
+  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ global_domain }} bash -c "configtxlator proto_decode --input ./{{ workdir_name }}/config_{{ mod_channel }}_new_delta.pb --type common.ConfigUpdate | jq . > {{ workdir_name }}/config_{{ mod_channel }}_new_delta.json"'
 
 - name: Wrap new json with header
-  raw: "cd {{ fabric_artifacts }} && echo '{\"payload\":{\"header\":{\"channel_header\":{\"channel_id\":\"{{ mod_channel }}\",\"type\":2}},\"data\":{\"config_update\":'$(cat config_{{ mod_channel }}_new_delta.json)'}}}' | jq . > config_{{ mod_channel }}_new_wrapped.json"
+  raw: "cd {{ fabric_artifacts }}/{{ workdir_name }} && echo '{\"payload\":{\"header\":{\"channel_header\":{\"channel_id\":\"{{ mod_channel }}\",\"type\":2}},\"data\":{\"config_update\":'$(cat config_{{ mod_channel }}_new_delta.json)'}}}' | jq . > config_{{ mod_channel }}_new_wrapped.json"
 
 - name: Encoding new wrapped channel block
-  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ domain }} bash -c "configtxlator proto_encode --input config_{{ mod_channel }}_new_wrapped.json --type {{ common_channel_name }}.Envelope --output ./channel/config_{{ mod_channel }}_new_envelope.pb"'
+  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ global_domain }} bash -c "configtxlator proto_encode --input {{ workdir_name }}/config_{{ mod_channel }}_new_wrapped.json --type common.Envelope --output ./channel/config_{{ mod_channel }}_new_envelope.pb"'
 
 - name: Changing artifacts file ownership
-  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ domain }} bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
+  raw: 'docker exec -e FABRIC_CFG_PATH=/etc/hyperledger/artifacts cli.{{ org }}.{{ global_domain }} bash -c "chown -R {{ ansible_user_uid }}:{{ ansible_user_gid }} ."'
 
 - name: Create all folders for rsync..
   file:

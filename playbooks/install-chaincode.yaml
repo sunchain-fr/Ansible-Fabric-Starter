@@ -2,7 +2,4 @@
 - name: Install chaincode
   raw: "docker exec 'cli.{{ org }}.{{ global_domain }}' bash -c 'export CORE_PEER_ADDRESS=peer0.{{ org }}.{{ global_domain }}:7051 && peer chaincode install -n {{ item.chaincode.name }} -v {{ item.chaincode.version }} -p {% if global_chaincode_lang != 'golang' %} /opt/gopath/src/{{ item.chaincode.name }} {% else %} {{ item.chaincode.name }} {% endif %} -l {{ global_chaincode_lang }}'"
   when: "org in item.particapants"
-  retries: 15
-  delay: 1
-  register: result
-  until: result.rc == 0
+  ignore_errors: true

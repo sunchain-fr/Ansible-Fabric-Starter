@@ -103,6 +103,9 @@ files_to_rsync_nodes_phase1:
     to: "crypto-config/ordererOrganizations/{{ global_domain }}/tlsca"
   - from: "channel"
     to: ""
+files_to_rsync_nodes_phase2:
+  - from: "*.block"
+    to: ""
 
 files_hl_explorer:
   - from: "artifact-templates/explorer-config.json"

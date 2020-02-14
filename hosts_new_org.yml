@@ -1,110 +1,116 @@
 ---
 #
-# hosts.yml configuration draft for adding new org (d)
+# hosts.yml configuration draft for adding new org (org5)
 # to running network brought by ansible-fabric-starter.
 #
-# Please note, that only kakfa-orderer based configuration
-# can be extended with new orgs. This is the hosts_kafka.yml
+# This is the hosts_raft.yml
 # modifyed example, to show how to add new orgs..
 #
 
 all:
   hosts:
-    localhost:
+    localhost: # localhost connection parameters, used for storing configuration while transferring it between nodes
       ansible_connection: local
   vars:
-    domain: example.com
-    additional_channels:
-      - name: a-b # Note, that you CAN NOT rename channel
-        particapants:
-        - a
-        - b
-        - d # just add an org name to existing channels
-      - name: a-c
-        particapants:
-        - a
-        - c
-      - name: b-c # Note, that you CAN NOT rename channel
-        particapants:
-        - b
-        - c
-        - d # just add an org name to existing channels
+    global_domain: example.com
+    global_chaincode_lang: golang # Programming language of chaincode
+    global_chaincode_version: 1.0 # Your chaincode version
+    global_channels:
+      - name: common # Channel name
+        particapants: # Organizations, should be included in channel
+          - org0
+          - org1
+          - org2
+          - org3
+          - org4 ## Add new org to existing channel, just defining them here
+        chaincode: # Chaincode params
+          name: reference
+          version: "{{ global_chaincode_version }}"
+          policy: ""
+          init: '{"Args":["init","a","100","b","100"]}'
+      - name: bilateral-1 # Channel name
+        particapants: # Organizations, should be included in channel
+          - org2
+          - org3
+        chaincode: # Chaincode params
+          name: relationship
+          version: "{{ global_chaincode_version }}"
+          policy: ""
+          init: '{"Args":["init","a","100","b","100"]}'
 
     #
     # Completly new channels should be defined to the system in new_channels variable.
     #
 
     new_channels:
-      - name: a-d
-        particapants:
-        - a
-        - d
+      - name: shiny-new-channel # Channel name
+        particapants: # Organizations, should be included in channel
+          - org3
+          - org4
+        chaincode: # Chaincode params
+          name: reference
+          version: "{{ global_chaincode_version }}"
+          policy: ""
+          init: '{"Args":["init","a","100","b","100"]}'
 
     ############
 
     ############
 
-    orderer_count: 4 # Increase orderer conunt according to your new network size.
-    newcomers: yes # Define a newcomers flag, to pass safery check.
+    orderer_count: 4 # Leave untouched, we do not support orderer scaling yet.
+    newcomers: yes # Define a newcomers flag, to pass safety check.
 
     ############
-    orderer_type: kafka
-    kafka_replicas: 2
-    kafka_replication_factor: 3
+
   children:
     nodes:
       hosts:
-        kafka.example.com:
+        org0.example.com: # Describes which containers will run on this node
           node_roles:
-            - zookeeper
-            - kafka_broke
-          org: kafka
-          zookeeper_id: 0
-          kafka_broker_id: 0
-          ansible_host: 192.168.4.2
-          ansible_user: debian
-          ansible_ssh_port: 22
-
-        a.example.com:
-          node_roles:
-            - root_orderer
-            - orderer
-            - peer
-            - root_peer
-            - zookeeper
-            - kafka_broker
-          org: a
+            - root_orderer # This node will be used to generate crypto-config for other orderers
+            - orderer # This node will host an orderer-service
+            - peer # This node will host peers and api containers for organization
+            - root_peer # This node will be used to create channels and instantiate chaincode
+            - explorer # This node will serve hyperledger fabric explorer
+          org: org0 # Organization name
           orderer_id: 0
-          zookeeper_id: 1
-          kafka_broker_id: 1
-          ansible_host: 192.168.4.1
-          ansible_user: debian
+          ansible_host: 18.212.147.220 # Real ip address or domain name of the machine
+          ansible_user: ubuntu  # User with sudo access
+          #ansible_private_key_file: ~/path-to-private-key # Private key to identify ourselves
+          ansible_ssh_port: 22 # Specify ssh-port here, if case of it's not defaulted.
+        # Same structure for any other nodes
+        org1.example.com:
+          node_roles:
+            - orderer # This node will host an orderer-service
+            - peer # This node will host peers and api containers for organization
+            - explorer
+          org: org1
+          orderer_id: 1 # ID of orderer-service which is running on this host
+          ansible_host: 54.211.182.66
+          ansible_user: ubuntu
+          #ansible_private_key_file: ~/path-to-private-key
           ansible_ssh_port: 22
-
-        b.example.com:
+        org2.example.com:
           node_roles:
             - orderer
             - peer
-            - zookeeper
-            - kafka_broker
-          org: b
-          orderer_id: 1
-          zookeeper_id: 2
-          kafka_broker_id: 2
-          ansible_host: 192.168.3.1
-          ansible_user: debian
-          ansible_ssh_port: 22
-
-        c.example.com:
-          node_roles:
-            - peer
-            - orderer
-            - kafka_broker
-          org: c
+            - explorer
+          org: org2
           orderer_id: 2
-          kafka_broker_id: 3
-          ansible_host: 192.168.2.1
-          ansible_user: debian
+          ansible_host: 3.81.75.88
+          ansible_user: ubuntu
+          #ansible_private_key_file: ~/path-to-private-key
+          ansible_ssh_port: 22
+        org3.example.com: # This node will host only kafka-broker and peer.
+          node_roles:
+            - peer
+            - orderer
+            - explorer
+          org: org3
+          orderer_id: 3
+          ansible_host: 23.20.192.198
+          ansible_user: ubuntu
+          #ansible_private_key_file: ~/path-to-private-key
           ansible_ssh_port: 22
 
 
@@ -112,15 +118,16 @@ all:
 #   New organization defined as usual, but with a newcomer role:
 #
 
-        d.example.com:
+###########
+
+        org4.example.com:
           node_roles:
             - peer
-            - orderer
             - newcomer # Add a 'newcomer' role to each new org.
-          org: d
-          orderer_id: 3
-          ansible_host: 192.168.1.2
-          ansible_user: debian
+          org: org4
+          orderer_id: 0
+          ansible_host: 54.197.194.21
+          ansible_user: ubuntu
           ansible_ssh_port: 22
 
 

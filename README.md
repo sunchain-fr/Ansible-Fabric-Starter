@@ -339,7 +339,7 @@ Creates all channels and starts blockchain network.
 #### **add-new-org.yml** 
 
 An experimental playbook designed to add new organizations and channels to running network, previously deployed with 
-`ansible-fabric-starter` in `kafka-orderer` mode.
+`ansible-fabric-starter` in `raft-orderer` mode.
 To add new orgs/channels to your running network, you should have access to all of the network instances and hosts.yml inventory file network was deployed.
 
 Modify your inventory file in a following way: __(Example configuration can be found in hosts_new_org.yml)__
@@ -348,7 +348,7 @@ Modify your inventory file in a following way: __(Example configuration can be f
 2. Add new organization names in all need existing channels.
 3. Define new channels in `new_channels` variable.
 4. Increase amount of orderers, according to the new size of your network.
-5. Define all new organizations with `peer`, `orderer` and a `newcomer` flags.
+5. Define all new organizations with `peer` and a `newcomer` flags.
 6. Install all dependencies on the new machione: `ansible-playbook install-dependencies.yml -i hosts_new_org.yml`
 7. Run deployment on testing environment with `ansible-playbook add-new-org.yml -i hosts_new_org.yml`
 
