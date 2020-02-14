@@ -104,7 +104,7 @@
           create: yes
 
       - name: Install chaincode
-        include_tasks: playbooks/install_chaincode.yaml
+        include_tasks: playbooks/install-chaincode.yaml
         loop: "{{ global_channels }}"
 
       when: "'peer' in node_roles"

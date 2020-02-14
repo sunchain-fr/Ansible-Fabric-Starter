@@ -6,7 +6,7 @@ Assumed that 1 physical (or virtual) host will serve one organisation, so **only
 ## Quick overview:
 * Hyperledger Fabric v1.4.4
 * TLS enabled on all configurations
-* etcdraft orderer
+* etcdraft orderer cluster
 * CouchDB and LevelDB peer database supprted
 * Configurable amount of organisations
 * Configurable amount of channels
@@ -57,16 +57,6 @@ Provisioned nodes by ansible should have:
 ```git clone https://github.com/Altoros/Ansible-Fabric-Starter.git```
 
 #### How should I configure my blockchain network?
-
-You can find three example-configurations:
-
-   ![alt hosts_compact](docs/hosts_compact.png "hosts_compact.yml")
-- **hosts_compact.yml** - Solo orderer, 3 organizations, orderer-service is hosted on first's organization node. Only common channel is enabled.
-
-
-   ![alt hosts_dedicated_orderer](docs/hosts_dedicated_orderer.png "hosts_dedicated_orderer.yml")
-- **hosts_dedicated_orderer.yml** - Solo orderer, 3 organizations, orderer-service is hosted on separated node. 3 private channels between all organizations.
-
 
    ![alt hosts_raft](docs/hosts_raft.png "hosts_raft.yml")
 - **hosts_raft.yml** - EtcdRaft orderer, 4 organizations, each organization has own copy of orderer-service. 2 private channels between first three organizations.
