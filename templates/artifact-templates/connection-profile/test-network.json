@@ -1,0 +1,54 @@
+{
+	"name": "test-network",
+        "version": "1.0.0",
+        "client": {
+                "tlsEnable": true,
+                "adminCredential": {
+                        "id": "admin",
+                        "password": "adminpwSunchain"
+                },
+                "enableAuthentication": true,
+                "organization": "{{ org }}MSP",
+                "connection": {
+                        "timeout": {
+                                "peer": {
+                                        "endorser": "300"
+                                },
+                                "orderer": "300"
+                        }
+                }
+        },
+        "channels": {
+            "common": {
+               "peers": {
+                    "peer0.{{ org }}.{{ global_domain }}":  {}          
+               }
+           }
+       },
+       "organizations": {
+            "{{ org }}MSP": {
+                "mspid": "{{ org }}MSP",
+                "fullpath": true,
+                "adminPrivateKey": {
+                "path": "/opt/explorer/crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/users/Admin@{{ org }}.{{ global_domain }}/msp/keystore/server.key"
+            },
+		"peers": ["peer0.{{ org }}.{{ global_domain }}"],
+                "signedCert": {
+                    "path": "/opt/explorer/crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/users/Admin@{{ org }}.{{ global_domain }}/msp/signcerts/Admin@{{ org }}.{{ global_domain }}-cert.pem"
+                }
+            }
+        },
+        "peers": {
+            "peer0.{{ org }}.{{ global_domain }}": {
+            "tlsCACerts": {
+                "path": "/opt/explorer/crypto-config/peerOrganizations/{{ org }}.{{ global_domain }}/peers/peer0.{{ org }}.{{ global_domain }}/tls/ca.crt"
+            },
+            "url": "grpcs://peer0.{{ org }}.{{ global_domain }}:7051",
+            "eventUrl": "grpcs://peer0.{{ org }}.{{ global_domain }}:7053",
+            "grpcOptions": {
+                "ssl-target-name-override": "peer0.{{ org }}.{{ global_domain }}"
+            }
+        }
+    }
+}
+
