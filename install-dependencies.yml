@@ -20,8 +20,8 @@
   become: true
   tasks:
   - community.general.docker_image:
-      name: hyperledger/fabric-ccenv:latest
-      repository: hyperledger/fabric-ccenv:amd64-{{ fabric_pack }}
+      name: hyperledger/fabric-ccenv:amd64-{{ fabric_pack }}
+      repository: hyperledger/fabric-ccenv:latest
       # As 'latest' usually already is present, we need to enable overwriting of existing tags:
       force_tag: yes
       source: local
