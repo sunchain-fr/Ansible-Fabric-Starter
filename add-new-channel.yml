@@ -1,0 +1,31 @@
+---
+- hosts: nodes
+  tasks:
+
+  - name: Adding channel profile to configtx.yaml file
+    blockinfile:
+      path: "{{ fabric_artifacts }}/configtx.yaml"
+      insertafter: EOF
+      block: |4 #do not mess with the indentation!
+      
+              {{ new_channel }}:
+                  Consortium: SampleConsortium
+                  Application:
+                      <<: *ApplicationDefaults
+                      Organizations:
+                          - *soliha
+                          - *ekate
+                      Capabilities:
+                          <<: *ApplicationCapabilities
+
+  - name: Generating the .tx file
+    raw: "docker exec 'cli.{{ org }}.{{ global_domain }}' bash -c 'export FABRIC_CFG_PATH=/etc/hyperledger/artifacts && configtxgen -profile {{ new_channel }} -outputCreateChannelTx \"./channel/{{ new_channel }}.tx\" -channelID {{ new_channel }}'"
+
+  - name: Creating the config block
+    raw: "docker exec 'cli.{{ org }}.{{ global_domain }}' bash -c 'export FABRIC_CFG_PATH=/etc/hyperledger/fabric && peer channel create -c {{ new_channel }} -f /etc/hyperledger/artifacts/channel/{{ new_channel }}.tx -o orderer{{ orderer_id | default() }}.{{ global_domain }}:{{ orderer_port }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ global_domain }}/orderers/orderer{{ orderer_id | default() }}.{{ global_domain }}/tls/ca.crt'"
+
+  - name: Join the first peer to the channel
+    raw: "docker exec 'cli.{{ org }}.{{ global_domain }}' bash -c 'peer channel join -b /etc/hyperledger/artifacts/{{ new_channel }}.block'"
+
+  - name: Instantiate chaincode
+    raw: "docker exec 'cli.{{ org }}.{{ global_domain }}' bash -c 'peer chaincode instantiate -C {{ new_channel }} -n {{ chaincode_new_channel }} -v {{ chaincode_version_new_channel }} -o orderer0.{{ global_domain }}:{{ orderer_port }} --tls --cafile /etc/hyperledger/artifacts/crypto-config/ordererOrganizations/{{ global_domain }}/orderers/orderer{{ orderer_id | default() }}.{{ global_domain }}/tls/ca.crt -c {{ chanicode_common_init | to_json }} ' "

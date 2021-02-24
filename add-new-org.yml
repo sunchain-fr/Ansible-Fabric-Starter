@@ -263,7 +263,7 @@
       - name: Generate init-script..
         lineinfile:
           path: "{{ fabric_starter_workdir }}/start-node.sh"
-          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d 2>&1"
+          line: "docker-compose -f {{ docker_artifacts }}/docker-compose-{{ org }}.yaml up -d --remove-orphans 2>&1"
           create: yes
 
       - name: Generate down-script..
